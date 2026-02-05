@@ -8,6 +8,8 @@ export async function PATCH(
   try {
     const body = await request.json()
     const { ativo } = body
+    
+    console.log('PATCH produto:', params.id, 'ativo:', ativo)
 
     const produto = await prisma.produto.update({
       where: { id: params.id },
@@ -17,10 +19,12 @@ export async function PATCH(
     return NextResponse.json(produto)
   } catch (error: any) {
     console.error('Erro ao atualizar produto:', error)
+    console.error('Error meta:', error.meta)
     return NextResponse.json({ 
       error: 'Erro ao atualizar produto', 
       details: error.message,
-      code: error.code 
+      code: error.code,
+      meta: error.meta
     }, { status: 500 })
   }
 }
