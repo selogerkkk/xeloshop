@@ -1,6 +1,22 @@
+# Dependencies
 node_modules/
+.pnpm-store/
+
+# Next.js build
+.next/
+out/
+
+# Environment
 .env
 .env.local
+.env.*.local
+
+# Generated files
+next-env.d.ts
+*.tsbuildinfo
+
+# Misc
 .vercel
 *.db
 prisma/migrations/
+.DS_Store

@@ -3,9 +3,11 @@
 interface Produto {
   id: string
   nome: string
+  linkProduto: string | null
   custo: string
   precoVenda: string
   quantidade: number
+  ativo: boolean
   criadoEm: string
   _count?: {
     vendas: number
@@ -19,7 +21,7 @@ interface ProdutoListProps {
 
 export function ProdutoList({ produtos, onUpdate }: ProdutoListProps) {
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este produto?')) return
+    if (!confirm('Tem certeza que deseja excluir este produto PERMANENTEMENTE?')) return
 
     try {
       const response = await fetch(`/api/produtos/${id}`, {
@@ -32,6 +34,23 @@ export function ProdutoList({ produtos, onUpdate }: ProdutoListProps) {
       }
     } catch (error) {
       alert('Erro ao excluir produto')
+    }
+  }
+
+  const handleToggleAtivo = async (id: string, ativo: boolean) => {
+    try {
+      const response = await fetch(`/api/produtos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ativo })
+      })
+      if (response.ok) {
+        onUpdate()
+      } else {
+        alert('Erro ao atualizar produto')
+      }
+    } catch (error) {
+      alert('Erro ao atualizar produto')
     }
   }
 
@@ -67,12 +86,31 @@ export function ProdutoList({ produtos, onUpdate }: ProdutoListProps) {
             return (
               <tr 
                 key={produto.id} 
-                className={produto.quantidade === 0 ? 'bg-red-50' : 'hover:bg-gray-50'}
+                className={`
+                  ${produto.quantidade === 0 ? 'bg-red-50' : 'hover:bg-gray-50'}
+                  ${!produto.ativo ? 'opacity-60 bg-gray-100' : ''}
+                `}
               >
                 <td className="px-4 py-3">
-                  <div className="font-medium">{produto.nome}</div>
-                  {produto.quantidade === 0 && (
+                  <div className="font-medium">
+                    {produto.nome}
+                    {produto.linkProduto && (
+                      <a 
+                        href={produto.linkProduto} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="ml-2 text-blue-500 hover:text-blue-700"
+                        title="Ver no site"
+                      >
+                        🔗
+                      </a>
+                    )}
+                  </div>
+                  {produto.quantidade === 0 && produto.ativo && (
                     <span className="text-xs text-red-600 font-medium">ESGOTADO</span>
+                  )}
+                  {!produto.ativo && (
+                    <span className="text-xs text-gray-500 font-medium">INATIVO</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-sm">R$ {custo.toFixed(2)}</td>
@@ -88,7 +126,13 @@ export function ProdutoList({ produtos, onUpdate }: ProdutoListProps) {
                     R$ {lucroUnitario.toFixed(2)}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 space-x-2">
+                  <button
+                    onClick={() => handleToggleAtivo(produto.id, !produto.ativo)}
+                    className={`text-sm ${produto.ativo ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'}`}
+                  >
+                    {produto.ativo ? 'Inativar' : 'Reativar'}
+                  </button>
                   <button
                     onClick={() => handleDelete(produto.id)}
                     className="text-red-600 hover:text-red-800 text-sm"

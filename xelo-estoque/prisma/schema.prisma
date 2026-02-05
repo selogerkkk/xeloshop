@@ -10,9 +10,11 @@ datasource db {
 model Produto {
   id           String   @id @default(uuid())
   nome         String
+  linkProduto  String?
   custo        Decimal  @db.Decimal(10, 2)
   precoVenda   Decimal  @db.Decimal(10, 2)
   quantidade   Int      @default(0)
+  ativo        Boolean  @default(true)
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
   

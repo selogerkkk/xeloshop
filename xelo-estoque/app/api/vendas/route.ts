@@ -7,6 +7,7 @@ export async function GET() {
       include: {
         produto: {
           select: {
+            id: true,
             nome: true,
             custo: true
           }

@@ -14,6 +14,7 @@ interface Venda {
 
 interface VendaListProps {
   vendas: Venda[]
+  onUpdate?: () => void
 }
 
 const CANAL_LABELS: Record<string, string> = {
@@ -32,7 +33,24 @@ const CANAL_COLORS: Record<string, string> = {
   'Outro': 'bg-gray-100 text-gray-800'
 }
 
-export function VendaList({ vendas }: VendaListProps) {
+export function VendaList({ vendas, onUpdate }: VendaListProps) {
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta venda? O estoque será restaurado.')) return
+
+    try {
+      const response = await fetch(`/api/vendas/${id}`, {
+        method: 'DELETE'
+      })
+      if (response.ok) {
+        onUpdate?.()
+      } else {
+        alert('Erro ao excluir venda')
+      }
+    } catch (error) {
+      alert('Erro ao excluir venda')
+    }
+  }
+
   if (vendas.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -77,6 +95,7 @@ export function VendaList({ vendas }: VendaListProps) {
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Preço Unit.</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Total</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Lucro</th>
+              {onUpdate && <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Ações</th>}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -106,6 +125,16 @@ export function VendaList({ vendas }: VendaListProps) {
                         R$ {lucro.toFixed(2)}
                       </span>
                     </td>
+                    {onUpdate && (
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleDelete(venda.id)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Excluir
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 )
               })}

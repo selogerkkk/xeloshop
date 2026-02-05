@@ -9,9 +9,11 @@ import { VendaList } from '@/components/VendaList'
 type Produto = {
   id: string
   nome: string
+  linkProduto: string | null
   custo: string
   precoVenda: string
   quantidade: number
+  ativo: boolean
   _count?: {
     vendas: number
   }
@@ -33,20 +35,34 @@ export default function Home() {
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [vendas, setVendas] = useState<Venda[]>([])
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'disponivel' | 'vendido'>('todos')
+  const [mostrarInativos, setMostrarInativos] = useState(false)
+  const [modalAberto, setModalAberto] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const fetchData = async () => {
     try {
       const [prodRes, vendRes] = await Promise.all([
-        fetch('/api/produtos'),
+        fetch(`/api/produtos${mostrarInativos ? '?todos=true' : ''}`),
         fetch('/api/vendas')
       ])
       const prodData = await prodRes.json()
       const vendData = await vendRes.json()
-      setProdutos(prodData)
-      setVendas(vendData)
+      
+      // Verifica se é array (proteção contra erro da API)
+      setProdutos(Array.isArray(prodData) ? prodData : [])
+      setVendas(Array.isArray(vendData) ? vendData : [])
+      
+      // Se deu erro, mostra no console
+      if (!Array.isArray(prodData)) {
+        console.error('Erro na API de produtos:', prodData)
+      }
+      if (!Array.isArray(vendData)) {
+        console.error('Erro na API de vendas:', vendData)
+      }
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
+      setProdutos([])
+      setVendas([])
     } finally {
       setLoading(false)
     }
@@ -54,7 +70,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [mostrarInativos])
 
   const produtosFiltrados = produtos.filter(p => {
     if (filtroStatus === 'disponivel') return p.quantidade > 0
@@ -141,32 +157,76 @@ export default function Home() {
       {/* Conteúdo */}
       {activeTab === 'estoque' && (
         <div className="space-y-6">
-          <ProdutoForm onSuccess={fetchData} />
-          
-          <div className="flex gap-2 items-center">
-            <span className="text-sm text-gray-600">Filtrar:</span>
-            <select 
-              value={filtroStatus}
-              onChange={(e) => setFiltroStatus(e.target.value as any)}
-              className="border rounded px-3 py-1 text-sm"
+          {/* Botão Adicionar */}
+          <div className="flex justify-between items-center">
+            <div className="flex gap-4 items-center flex-wrap">
+              <div className="flex gap-2 items-center">
+                <span className="text-sm text-gray-600">Estoque:</span>
+                <select 
+                  value={filtroStatus}
+                  onChange={(e) => setFiltroStatus(e.target.value as any)}
+                  className="border rounded px-3 py-1 text-sm"
+                >
+                  <option value="todos">Todos</option>
+                  <option value="disponivel">Com Estoque</option>
+                  <option value="vendido">Esgotados</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={mostrarInativos}
+                  onChange={(e) => setMostrarInativos(e.target.checked)}
+                  className="rounded"
+                />
+                Mostrar inativos
+              </label>
+            </div>
+            <button
+              onClick={() => setModalAberto(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
             >
-              <option value="todos">Todos</option>
-              <option value="disponivel">Com Estoque</option>
-              <option value="vendido">Esgotados</option>
-            </select>
+              ➕ Adicionar Produto
+            </button>
           </div>
+
+          {/* Mensagem quando vazio */}
+          {produtos.length === 0 && !loading && (
+            <div className="bg-yellow-50 border border-yellow-200 p-8 rounded-lg text-center">
+              <p className="text-yellow-800 text-lg mb-2">📭 Nenhum produto cadastrado</p>
+              <p className="text-yellow-600 text-sm mb-4">
+                Clique em "Adicionar Produto" para começar
+              </p>
+              <button
+                onClick={() => setModalAberto(true)}
+                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+              >
+                Adicionar Primeiro Produto
+              </button>
+            </div>
+          )}
           
-          <ProdutoList 
-            produtos={produtosFiltrados} 
-            onUpdate={fetchData}
-          />
+          {produtos.length > 0 && (
+            <ProdutoList 
+              produtos={produtosFiltrados} 
+              onUpdate={fetchData}
+            />
+          )}
         </div>
+      )}
+
+      {/* Modal */}
+      {modalAberto && (
+        <ProdutoForm 
+          onSuccess={fetchData} 
+          onClose={() => setModalAberto(false)} 
+        />
       )}
 
       {activeTab === 'vendas' && (
         <div>
           <VendaForm 
-            produtos={produtos.filter(p => p.quantidade > 0)} 
+            produtos={produtos.filter(p => p.quantidade > 0 && (p.ativo || p.ativo === null))} 
             onSuccess={fetchData}
           />
         </div>
@@ -174,7 +234,7 @@ export default function Home() {
 
       {activeTab === 'historico' && (
         <div>
-          <VendaList vendas={vendas} />
+          <VendaList vendas={vendas} onUpdate={fetchData} />
         </div>
       )}
     </div>
