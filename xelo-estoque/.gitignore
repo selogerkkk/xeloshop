@@ -20,3 +20,6 @@ next-env.d.ts
 *.db
 prisma/migrations/
 .DS_Store
+
+.tldr
+.claude

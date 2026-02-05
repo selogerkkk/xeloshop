@@ -14,6 +14,7 @@ type Produto = {
   precoVenda: string
   quantidade: number
   ativo: boolean
+  criadoEm: string
   _count?: {
     vendas: number
   }
@@ -22,7 +23,9 @@ type Produto = {
 type Venda = {
   id: string
   produto: {
+    id: string
     nome: string
+    custo: string
   }
   quantidade: number
   canal: string
