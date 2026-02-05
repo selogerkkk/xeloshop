@@ -29,19 +29,3 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    // Soft delete: marca como inativo em vez de deletar
-    await prisma.produto.update({
-      where: { id: params.id },
-      data: { ativo: false }
-    })
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Erro ao excluir produto:', error)
-    return NextResponse.json({ error: 'Erro ao excluir produto' }, { status: 500 })
-  }
-}
