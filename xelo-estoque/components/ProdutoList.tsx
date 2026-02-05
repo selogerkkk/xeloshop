@@ -20,23 +20,6 @@ interface ProdutoListProps {
 }
 
 export function ProdutoList({ produtos, onUpdate }: ProdutoListProps) {
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este produto PERMANENTEMENTE?')) return
-
-    try {
-      const response = await fetch(`/api/produtos/${id}`, {
-        method: 'DELETE'
-      })
-      if (response.ok) {
-        onUpdate()
-      } else {
-        alert('Erro ao excluir produto')
-      }
-    } catch (error) {
-      alert('Erro ao excluir produto')
-    }
-  }
-
   const handleToggleAtivo = async (id: string, ativo: boolean) => {
     try {
       const response = await fetch(`/api/produtos/${id}`, {
@@ -126,18 +109,12 @@ export function ProdutoList({ produtos, onUpdate }: ProdutoListProps) {
                     R$ {lucroUnitario.toFixed(2)}
                   </span>
                 </td>
-                <td className="px-4 py-3 space-x-2">
+                <td className="px-4 py-3">
                   <button
                     onClick={() => handleToggleAtivo(produto.id, !produto.ativo)}
                     className={`text-sm ${produto.ativo ? 'text-orange-600 hover:text-orange-800' : 'text-green-600 hover:text-green-800'}`}
                   >
                     {produto.ativo ? 'Inativar' : 'Reativar'}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(produto.id)}
-                    className="text-red-600 hover:text-red-800 text-sm"
-                  >
-                    Excluir
                   </button>
                 </td>
               </tr>
