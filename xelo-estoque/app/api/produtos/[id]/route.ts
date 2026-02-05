@@ -34,8 +34,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await prisma.produto.delete({
-      where: { id: params.id }
+    // Soft delete: marca como inativo em vez de deletar
+    await prisma.produto.update({
+      where: { id: params.id },
+      data: { ativo: false }
     })
     return NextResponse.json({ success: true })
   } catch (error) {
