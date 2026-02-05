@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Produto {
+  id           String   @id @default(uuid())
+  nome         String
+  custo        Decimal  @db.Decimal(10, 2)
+  precoVenda   Decimal  @db.Decimal(10, 2)
+  quantidade   Int      @default(0)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+  
+  vendas       Venda[]
+  
+  @@map("produtos")
+}
+
+model Venda {
+  id          String   @id @default(uuid())
+  produtoId   String
+  produto     Produto  @relation(fields: [produtoId], references: [id])
+  quantidade  Int      @default(1)
+  canal       String   // ML, Facebook, Instagram, Outro
+  precoReal   Decimal  @db.Decimal(10, 2)
+  vendidoEm   DateTime @default(now())
+  
+  @@map("vendas")
+}
