@@ -15,9 +15,13 @@ export async function PATCH(
     })
 
     return NextResponse.json(produto)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao atualizar produto:', error)
-    return NextResponse.json({ error: 'Erro ao atualizar produto' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Erro ao atualizar produto', 
+      details: error.message,
+      code: error.code 
+    }, { status: 500 })
   }
 }
 
