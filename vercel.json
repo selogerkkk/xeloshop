@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "rootDirectory": "xelo-estoque",
-  "buildCommand": "pnpm build",
-  "outputDirectory": ".next"
+  "buildCommand": "cd xelo-estoque && npm install && npm run build",
+  "outputDirectory": "xelo-estoque/.next",
+  "installCommand": "cd xelo-estoque && npm install"
 }
