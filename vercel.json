@@ -1,1 +1,6 @@
-{"buildCommand": "cd xelo-estoque && pnpm build", "outputDirectory": "xelo-estoque/.next"}
+{
+  "framework": "nextjs",
+  "rootDirectory": "xelo-estoque",
+  "buildCommand": "pnpm build",
+  "outputDirectory": ".next"
+}
