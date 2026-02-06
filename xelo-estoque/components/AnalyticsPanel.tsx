@@ -1,8 +1,8 @@
 'use client'
 
 interface AnalyticsPanelProps {
-  vendas: any[]
-  produtos: any[]
+  vendas: Array<{ canal: string; quantidade: number; precoReal: string }>
+  produtos: Array<Record<string, unknown>>
   totalVendido: number
   lucroReal: number
   valorInvestido: number
@@ -27,7 +27,7 @@ export function AnalyticsPanel({
       acc[canal] = { count: 0, value: 0 }
     }
     acc[canal].count += v.quantidade
-    acc[canal].value += parseFloat(v.precoReal) * v.quantidade
+    acc[canal].value += Number.parseFloat(v.precoReal) * v.quantidade
     return acc
   }, {} as Record<string, { count: number, value: number }>)
 
@@ -88,7 +88,7 @@ export function AnalyticsPanel({
         <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-4">Sales by Channel</h3>
 
         <div className="space-y-2">
-          {Object.entries(channelBreakdown).map(([canal, data]) => {
+          {(Object.entries(channelBreakdown) as [string, { count: number; value: number }][]).map(([canal, data]) => {
             const percentage = totalVendido > 0 ? (data.value / totalVendido) * 100 : 0
             const channelColors: Record<string, string> = {
               'ML': 'bg-yellow-500',
@@ -109,7 +109,7 @@ export function AnalyticsPanel({
                   <div
                     className={`h-full ${barColor} transition-all duration-500`}
                     style={{ width: `${percentage}%` }}
-                  ></div>
+                  />
                 </div>
                 <p className="text-[10px] text-gray-600">{data.count} sales</p>
               </div>
