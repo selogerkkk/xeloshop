@@ -1,0 +1,12 @@
+{
+  "name": "xeloshop-root",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "next": "14.1.0"
+  },
+  "scripts": {
+    "build": "cd xelo-estoque && npm install && npm run build",
+    "dev": "cd xelo-estoque && npm run dev"
+  }
+}
