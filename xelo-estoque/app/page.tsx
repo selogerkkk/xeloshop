@@ -181,31 +181,28 @@ export default function Home() {
         <div className="flex gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveView('dashboard')}
-            className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all ${
-              activeView === 'dashboard'
-                ? 'bg-emerald-500/20 text-emerald-400 border-b-2 border-emerald-500'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
+            className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all ${activeView === 'dashboard'
+              ? 'bg-emerald-500/20 text-emerald-400 border-b-2 border-emerald-500'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
           >
             📊 Dashboard
           </button>
           <button
             onClick={() => setActiveView('trade')}
-            className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all ${
-              activeView === 'trade'
-                ? 'bg-emerald-500/20 text-emerald-400 border-b-2 border-emerald-500'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
+            className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all ${activeView === 'trade'
+              ? 'bg-emerald-500/20 text-emerald-400 border-b-2 border-emerald-500'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
           >
-            💹 Trade
+            💹 Sale
           </button>
           <button
             onClick={() => setActiveView('history')}
-            className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all ${
-              activeView === 'history'
-                ? 'bg-emerald-500/20 text-emerald-400 border-b-2 border-emerald-500'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
+            className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all ${activeView === 'history'
+              ? 'bg-emerald-500/20 text-emerald-400 border-b-2 border-emerald-500'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
           >
             📜 History
           </button>
