@@ -1,0 +1,1 @@
+{"buildCommand": "cd xelo-estoque && pnpm build", "outputDirectory": "xelo-estoque/.next"}
