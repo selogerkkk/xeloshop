@@ -1,5 +1,7 @@
 'use client'
 
+import { useState, useMemo } from 'react'
+
 interface Venda {
   id: string
   produto: {
@@ -33,7 +35,33 @@ const CANAL_COLORS: Record<string, string> = {
   'Outro': 'bg-gray-500/20 text-gray-400 border-gray-500/30'
 }
 
+function getMonthStartEnd() {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), 1)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  return {
+    start: start.toISOString().split('T')[0],
+    end: end.toISOString().split('T')[0]
+  }
+}
+
 export function VendaList({ vendas, onUpdate }: VendaListProps) {
+  const monthRange = getMonthStartEnd()
+  const [dateStart, setDateStart] = useState(monthRange.start)
+  const [dateEnd, setDateEnd] = useState(monthRange.end)
+
+  const filteredVendas = useMemo(() => {
+    const start = new Date(dateStart)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(dateEnd)
+    end.setHours(23, 59, 59, 999)
+
+    return vendas.filter(v => {
+      const vDate = new Date(v.vendidoEm)
+      return vDate >= start && vDate <= end
+    })
+  }, [vendas, dateStart, dateEnd])
+
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir esta venda? O estoque será restaurado.')) return
 
@@ -61,16 +89,41 @@ export function VendaList({ vendas, onUpdate }: VendaListProps) {
   }
 
   // Agrupa por canal
-  const porCanal = vendas.reduce((acc, venda) => {
+  const porCanal = filteredVendas.reduce((acc, venda) => {
     const canal = venda.canal
     if (!acc[canal]) acc[canal] = { total: 0, valor: 0 }
     acc[canal].total += venda.quantidade
-    acc[canal].valor += parseFloat(venda.precoReal) * venda.quantidade
+    acc[canal].valor += Number.parseFloat(venda.precoReal) * venda.quantidade
     return acc
   }, {} as Record<string, { total: number, valor: number }>)
 
   return (
     <div className="space-y-6">
+      {/* Date Filter */}
+      <div className="glass-card p-4">
+        <div className="flex items-center gap-4 flex-wrap">
+          <span className="text-xs uppercase tracking-wider text-gray-400">Date Range:</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateStart}
+              onChange={e => setDateStart(e.target.value)}
+              className="input-futuristic font-mono text-sm"
+            />
+            <span className="text-gray-500">to</span>
+            <input
+              type="date"
+              value={dateEnd}
+              onChange={e => setDateEnd(e.target.value)}
+              className="input-futuristic font-mono text-sm"
+            />
+          </div>
+          <span className="text-xs text-gray-500 ml-auto">
+            {filteredVendas.length} transactions
+          </span>
+        </div>
+      </div>
+
       {/* Resumo por Canal */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {Object.entries(porCanal).map(([canal, dados]) => (
@@ -100,11 +153,11 @@ export function VendaList({ vendas, onUpdate }: VendaListProps) {
             </tr>
           </thead>
           <tbody>
-            {vendas
+            {filteredVendas
               .sort((a, b) => new Date(b.vendidoEm).getTime() - new Date(a.vendidoEm).getTime())
               .map(venda => {
-                const custo = parseFloat(venda.produto.custo)
-                const preco = parseFloat(venda.precoReal)
+                const custo = Number.parseFloat(venda.produto.custo)
+                const preco = Number.parseFloat(venda.precoReal)
                 const lucro = (preco - custo) * venda.quantidade
                 const total = preco * venda.quantidade
                 const data = new Date(venda.vendidoEm).toLocaleDateString('pt-BR')
@@ -129,7 +182,8 @@ export function VendaList({ vendas, onUpdate }: VendaListProps) {
                     {onUpdate && (
                       <td className="text-center">
                         <button
-                          onClick={() => handleDelete(venda.id)}
+                          type="button"
+                      onClick={() => handleDelete(venda.id)}
                           className="text-[10px] font-medium px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20"
                         >
                           DELETE

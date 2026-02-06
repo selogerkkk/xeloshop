@@ -20,7 +20,8 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
     produtoId: '',
     quantidade: '1',
     canal: 'ML',
-    precoReal: ''
+    precoReal: '',
+    dataVenda: new Date().toISOString().split('T')[0]
   })
 
   const produtoSelecionado = produtos.find(p => p.id === form.produtoId)
@@ -29,7 +30,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
     e.preventDefault()
     if (!produtoSelecionado) return
 
-    const qtd = parseInt(form.quantidade)
+    const qtd = Number.parseInt(form.quantidade)
     if (qtd > produtoSelecionado.quantidade) {
       alert(`Insufficient stock! Available: ${produtoSelecionado.quantidade}`)
       return
@@ -45,12 +46,13 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
           produtoId: form.produtoId,
           quantidade: qtd,
           canal: form.canal,
-          precoReal: parseFloat(form.precoReal)
+          precoReal: Number.parseFloat(form.precoReal),
+          dataVenda: form.dataVenda
         })
       })
 
       if (response.ok) {
-        setForm({ produtoId: '', quantidade: '1', canal: 'ML', precoReal: '' })
+        setForm({ produtoId: '', quantidade: '1', canal: 'ML', precoReal: '', dataVenda: new Date().toISOString().split('T')[0] })
         onSuccess()
         alert('Trade executed successfully!')
       } else {
@@ -85,15 +87,16 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
           <p className="text-sm text-gray-500">Register a new sale transaction</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs text-emerald-500 font-mono">LIVE</span>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <label className="text-xs uppercase tracking-wider text-gray-400">Position</label>
+          <label htmlFor="produtoId" className="text-xs uppercase tracking-wider text-gray-400">Position</label>
           <select
+            id="produtoId"
             required
             value={form.produtoId}
             onChange={e => {
@@ -116,8 +119,9 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs uppercase tracking-wider text-gray-400">Sales Channel</label>
+          <label htmlFor="canal" className="text-xs uppercase tracking-wider text-gray-400">Sales Channel</label>
           <select
+            id="canal"
             required
             value={form.canal}
             onChange={e => setForm({...form, canal: e.target.value})}
@@ -132,8 +136,21 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs uppercase tracking-wider text-gray-400">Quantity</label>
+          <label htmlFor="dataVenda" className="text-xs uppercase tracking-wider text-gray-400">Sale Date</label>
           <input
+            id="dataVenda"
+            type="date"
+            required
+            value={form.dataVenda}
+            onChange={e => setForm({...form, dataVenda: e.target.value})}
+            className="input-futuristic font-mono"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="quantidade" className="text-xs uppercase tracking-wider text-gray-400">Quantity</label>
+          <input
+            id="quantidade"
             type="number"
             min="1"
             max={produtoSelecionado?.quantidade || 1}
@@ -150,8 +167,9 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs uppercase tracking-wider text-gray-400">Execution Price (R$)</label>
+          <label htmlFor="precoReal" className="text-xs uppercase tracking-wider text-gray-400">Execution Price (R$)</label>
           <input
+            id="precoReal"
             type="number"
             step="0.01"
             min="0"
@@ -163,7 +181,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
           />
           {produtoSelecionado && (
             <p className="text-[10px] text-gray-500">
-              Target: R$ {parseFloat(produtoSelecionado.precoVenda).toFixed(2)}
+              Target: R$ {Number.parseFloat(produtoSelecionado.precoVenda).toFixed(2)}
             </p>
           )}
         </div>
@@ -173,7 +191,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
             <div className="flex justify-between items-center text-sm">
               <span className="text-gray-400">Estimated Total</span>
               <span className="font-mono font-bold text-emerald-400">
-                R$ {(parseFloat(form.precoReal) * parseInt(form.quantidade) || 0).toFixed(2)}
+                R$ {(Number.parseFloat(form.precoReal) * Number.parseInt(form.quantidade) || 0).toFixed(2)}
               </span>
             </div>
           </div>
@@ -187,7 +205,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Processing...
               </span>
             ) : 'Execute Trade'}

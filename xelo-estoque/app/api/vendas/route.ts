@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { produtoId, quantidade, canal, precoReal } = body
+    const { produtoId, quantidade, canal, precoReal, dataVenda } = body
 
     if (!produtoId || !quantidade || !canal || precoReal === undefined) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
@@ -47,20 +47,32 @@ export async function POST(request: Request) {
     }
 
     // Cria venda e atualiza estoque em transação
+    const vendaData: {
+      produtoId: string
+      quantidade: number
+      canal: string
+      precoReal: number
+      vendidoEm?: Date
+    } = {
+      produtoId,
+      quantidade: Number.parseInt(quantidade),
+      canal,
+      precoReal
+    }
+
+    if (dataVenda) {
+      vendaData.vendidoEm = new Date(dataVenda)
+    }
+
     const [venda] = await prisma.$transaction([
       prisma.venda.create({
-        data: {
-          produtoId,
-          quantidade: parseInt(quantidade),
-          canal,
-          precoReal
-        }
+        data: vendaData
       }),
       prisma.produto.update({
         where: { id: produtoId },
         data: {
           quantidade: {
-            decrement: parseInt(quantidade)
+            decrement: Number.parseInt(quantidade)
           }
         }
       })
