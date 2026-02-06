@@ -6,7 +6,7 @@
     "next": "14.1.0"
   },
   "scripts": {
-    "build": "cd xelo-estoque && npm install && npm run build",
+    "build": "cd xelo-estoque && npm install --include=dev && npm run build",
     "dev": "cd xelo-estoque && npm run dev"
   }
 }
