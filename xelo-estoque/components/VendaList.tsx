@@ -26,11 +26,11 @@ const CANAL_LABELS: Record<string, string> = {
 }
 
 const CANAL_COLORS: Record<string, string> = {
-  'ML': 'bg-yellow-100 text-yellow-800',
-  'Facebook': 'bg-blue-100 text-blue-800',
-  'Instagram': 'bg-pink-100 text-pink-800',
-  'WhatsApp': 'bg-green-100 text-green-800',
-  'Outro': 'bg-gray-100 text-gray-800'
+  'ML': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  'Facebook': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  'Instagram': 'bg-pink-500/20 text-pink-400 border-pink-500/30',
+  'WhatsApp': 'bg-green-500/20 text-green-400 border-green-500/30',
+  'Outro': 'bg-gray-500/20 text-gray-400 border-gray-500/30'
 }
 
 export function VendaList({ vendas, onUpdate }: VendaListProps) {
@@ -53,8 +53,9 @@ export function VendaList({ vendas, onUpdate }: VendaListProps) {
 
   if (vendas.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        Nenhuma venda registrada ainda.
+      <div className="text-center py-12 text-gray-500">
+        <div className="text-3xl mb-2">📜</div>
+        <p className="text-sm">No transactions yet</p>
       </div>
     )
   }
@@ -71,34 +72,34 @@ export function VendaList({ vendas, onUpdate }: VendaListProps) {
   return (
     <div className="space-y-6">
       {/* Resumo por Canal */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {Object.entries(porCanal).map(([canal, dados]) => (
-          <div key={canal} className="bg-white p-4 rounded-lg shadow border">
-            <span className={`inline-block px-2 py-1 rounded text-xs font-medium mb-2 ${CANAL_COLORS[canal] || CANAL_COLORS['Outro']}`}>
+          <div key={canal} className="glass-card p-4">
+            <span className={`inline-block px-2 py-1 rounded text-[10px] font-medium mb-2 border ${CANAL_COLORS[canal] || CANAL_COLORS['Outro']}`}>
               {CANAL_LABELS[canal] || canal}
             </span>
-            <p className="text-lg font-bold">{dados.total} vendas</p>
-            <p className="text-sm text-gray-600">R$ {dados.valor.toFixed(2)}</p>
+            <p className="text-lg font-bold text-white">{dados.total} sales</p>
+            <p className="text-sm text-emerald-400 font-mono">R$ {dados.valor.toFixed(2)}</p>
           </div>
         ))}
       </div>
 
       {/* Lista */}
       <div className="overflow-x-auto">
-        <table className="w-full bg-white rounded-lg shadow border">
-          <thead className="bg-gray-50">
+        <table className="table-futuristic">
+          <thead>
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Data</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Produto</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Canal</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Qtd</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Preço Unit.</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Total</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Lucro</th>
-              {onUpdate && <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Ações</th>}
+              <th>Date</th>
+              <th>Product</th>
+              <th>Channel</th>
+              <th className="text-right">Qty</th>
+              <th className="text-right">Unit Price</th>
+              <th className="text-right">Total</th>
+              <th className="text-right">P&L</th>
+              {onUpdate && <th className="text-center">Action</th>}
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody>
             {vendas
               .sort((a, b) => new Date(b.vendidoEm).getTime() - new Date(a.vendidoEm).getTime())
               .map(venda => {
@@ -107,31 +108,31 @@ export function VendaList({ vendas, onUpdate }: VendaListProps) {
                 const lucro = (preco - custo) * venda.quantidade
                 const total = preco * venda.quantidade
                 const data = new Date(venda.vendidoEm).toLocaleDateString('pt-BR')
-                
+
                 return (
-                  <tr key={venda.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-600">{data}</td>
-                    <td className="px-4 py-3 font-medium">{venda.produto.nome}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${CANAL_COLORS[venda.canal] || CANAL_COLORS['Outro']}`}>
+                  <tr key={venda.id}>
+                    <td className="text-gray-400 font-mono text-xs">{data}</td>
+                    <td className="font-medium text-white">{venda.produto.nome}</td>
+                    <td>
+                      <span className={`inline-block px-2 py-1 rounded text-[10px] font-medium border ${CANAL_COLORS[venda.canal] || CANAL_COLORS['Outro']}`}>
                         {CANAL_LABELS[venda.canal] || venda.canal}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm">{venda.quantidade}</td>
-                    <td className="px-4 py-3 text-sm">R$ {preco.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm font-medium">R$ {total.toFixed(2)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-sm ${lucro >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        R$ {lucro.toFixed(2)}
+                    <td className="text-right font-mono">{venda.quantidade}</td>
+                    <td className="text-right font-mono text-gray-300">R$ {preco.toFixed(2)}</td>
+                    <td className="text-right font-mono text-white font-medium">R$ {total.toFixed(2)}</td>
+                    <td className="text-right">
+                      <span className={`font-mono text-sm ${lucro >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {lucro >= 0 ? '+' : ''}R$ {lucro.toFixed(2)}
                       </span>
                     </td>
                     {onUpdate && (
-                      <td className="px-4 py-3">
+                      <td className="text-center">
                         <button
                           onClick={() => handleDelete(venda.id)}
-                          className="text-red-600 hover:text-red-800 text-sm"
+                          className="text-[10px] font-medium px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20"
                         >
-                          Excluir
+                          DELETE
                         </button>
                       </td>
                     )}

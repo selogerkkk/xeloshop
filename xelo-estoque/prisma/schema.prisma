@@ -31,6 +31,18 @@ model Venda {
   canal       String   // ML, Facebook, Instagram, Outro
   precoReal   Decimal  @db.Decimal(10, 2)
   vendidoEm   DateTime @default(now())
-  
+
   @@map("vendas")
+}
+
+model Usuario {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  nome         String
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@map("usuarios")
 }

@@ -2,6 +2,142 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900;
+@layer base {
+  body {
+    @apply bg-black text-gray-100;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+
+  .glass-card {
+    @apply glass rounded-lg p-6 shadow-2xl;
+  }
+
+  .glow-green {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  }
+
+  .glow-green-strong {
+    box-shadow: 0 0 40px rgba(16, 185, 129, 0.5);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+  }
+
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(0, 0, 0, 0.3));
+  }
+
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(16, 185, 129, 0.05));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-black/50;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-emerald-900/50 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-emerald-700/50;
+}
+
+/* Animation */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(16, 185, 129, 0.6);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Table styles */
+.table-futuristic {
+  @apply w-full;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-futuristic th {
+  @apply px-4 py-3 text-left text-xs font-semibold text-emerald-400 uppercase tracking-wider;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.table-futuristic td {
+  @apply px-4 py-3 text-sm;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.table-futuristic tr:hover td {
+  @apply bg-white/5;
+}
+
+/* Input styles */
+.input-futuristic {
+  @apply w-full bg-black/50 border border-emerald-900/30 rounded px-3 py-2 text-white placeholder-gray-500;
+  @apply focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30;
+  transition: all 0.2s;
+}
+
+.input-futuristic:focus {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+}
+
+/* Button styles */
+.btn-primary {
+  @apply px-4 py-2 bg-emerald-600 text-white rounded font-medium;
+  @apply hover:bg-emerald-500 transition-all duration-200;
+  @apply focus:outline-none focus:ring-2 focus:ring-emerald-500/50;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+.btn-secondary {
+  @apply px-4 py-2 bg-white/5 text-white rounded font-medium border border-white/10;
+  @apply hover:bg-white/10 transition-all duration-200;
+}
+
+/* Sparkline animation */
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.sparkline {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: draw 1s ease-out forwards;
 }

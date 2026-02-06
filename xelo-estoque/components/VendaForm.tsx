@@ -31,7 +31,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
 
     const qtd = parseInt(form.quantidade)
     if (qtd > produtoSelecionado.quantidade) {
-      alert(`Estoque insuficiente! Disponível: ${produtoSelecionado.quantidade}`)
+      alert(`Insufficient stock! Available: ${produtoSelecionado.quantidade}`)
       return
     }
 
@@ -52,13 +52,13 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
       if (response.ok) {
         setForm({ produtoId: '', quantidade: '1', canal: 'ML', precoReal: '' })
         onSuccess()
-        alert('Venda registrada!')
+        alert('Trade executed successfully!')
       } else {
         const err = await response.json()
-        alert(err.error || 'Erro ao registrar venda')
+        alert(err.error || 'Error executing trade')
       }
     } catch (error) {
-      alert('Erro ao registrar venda')
+      alert('Error executing trade')
     } finally {
       setLoading(false)
     }
@@ -66,64 +66,73 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
 
   if (produtos.length === 0) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-lg">
-        <p className="text-yellow-800">
-          ⚠️ Não há produtos com estoque disponível. Adicione produtos primeiro.
-        </p>
+      <div className="glass-card border-yellow-500/30">
+        <div className="text-center py-8">
+          <div className="text-4xl mb-3">⚠️</div>
+          <p className="text-yellow-400">
+            No available positions to trade. Add products first.
+          </p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow border">
-      <h2 className="text-lg font-semibold mb-4">💰 Registrar Venda</h2>
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Produto
-          </label>
+          <h2 className="text-xl font-bold text-emerald-400">Execute Trade</h2>
+          <p className="text-sm text-gray-500">Register a new sale transaction</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+          <span className="text-xs text-emerald-500 font-mono">LIVE</span>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <label className="text-xs uppercase tracking-wider text-gray-400">Position</label>
           <select
             required
             value={form.produtoId}
             onChange={e => {
               const p = produtos.find(p => p.id === e.target.value)
               setForm({
-                ...form, 
+                ...form,
                 produtoId: e.target.value,
                 precoReal: p ? p.precoVenda : ''
               })
             }}
-            className="w-full border rounded px-3 py-2"
+            className="input-futuristic"
           >
-            <option value="">Selecione...</option>
+            <option value="">Select position...</option>
             {produtos.map(p => (
               <option key={p.id} value={p.id}>
-                {p.nome} (Estoque: {p.quantidade})
+                {p.nome.toUpperCase()} (Qty: {p.quantidade})
               </option>
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Canal de Venda
-          </label>
+
+        <div className="space-y-2">
+          <label className="text-xs uppercase tracking-wider text-gray-400">Sales Channel</label>
           <select
             required
             value={form.canal}
             onChange={e => setForm({...form, canal: e.target.value})}
-            className="w-full border rounded px-3 py-2"
+            className="input-futuristic"
           >
             <option value="ML">Mercado Livre</option>
             <option value="Facebook">Facebook</option>
             <option value="Instagram">Instagram</option>
             <option value="WhatsApp">WhatsApp</option>
-            <option value="Outro">Outro</option>
+            <option value="Outro">Other</option>
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Quantidade
-          </label>
+
+        <div className="space-y-2">
+          <label className="text-xs uppercase tracking-wider text-gray-400">Quantity</label>
           <input
             type="number"
             min="1"
@@ -131,18 +140,17 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
             required
             value={form.quantidade}
             onChange={e => setForm({...form, quantidade: e.target.value})}
-            className="w-full border rounded px-3 py-2"
+            className="input-futuristic"
           />
           {produtoSelecionado && (
-            <span className="text-xs text-gray-500">
-              Disponível: {produtoSelecionado.quantidade}
-            </span>
+            <p className="text-[10px] text-gray-500">
+              Available: {produtoSelecionado.quantidade} units
+            </p>
           )}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Preço Real da Venda (R$)
-          </label>
+
+        <div className="space-y-2">
+          <label className="text-xs uppercase tracking-wider text-gray-400">Execution Price (R$)</label>
           <input
             type="number"
             step="0.01"
@@ -150,17 +158,39 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
             required
             value={form.precoReal}
             onChange={e => setForm({...form, precoReal: e.target.value})}
-            className="w-full border rounded px-3 py-2"
-            placeholder="0,00"
+            className="input-futuristic font-mono"
+            placeholder="0.00"
           />
+          {produtoSelecionado && (
+            <p className="text-[10px] text-gray-500">
+              Target: R$ {parseFloat(produtoSelecionado.precoVenda).toFixed(2)}
+            </p>
+          )}
         </div>
+
+        {produtoSelecionado && (
+          <div className="md:col-span-2 glass-card p-4 bg-emerald-950/20">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-400">Estimated Total</span>
+              <span className="font-mono font-bold text-emerald-400">
+                R$ {(parseFloat(form.precoReal) * parseInt(form.quantidade) || 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="md:col-span-2">
           <button
             type="submit"
             disabled={loading || !form.produtoId}
-            className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+            className="btn-primary w-full py-3 text-lg"
           >
-            {loading ? 'Registrando...' : 'Registrar Venda'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                Processing...
+              </span>
+            ) : 'Execute Trade'}
           </button>
         </div>
       </form>
