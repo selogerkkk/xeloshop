@@ -39,7 +39,8 @@ export default function LoginPage() {
         setError(data.error || 'Erro ao autenticar')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ocorreu um erro inesperado')
+      console.error('Authentication error:', err)
+      setError('Ocorreu um erro ao autenticar. Tente novamente.')
     } finally {
       setLoading(false)
     }

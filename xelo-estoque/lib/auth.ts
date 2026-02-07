@@ -42,7 +42,7 @@ export async function verifyToken(token: string): Promise<UserPayload | null> {
       nome: String(payload.nome)
     }
   } catch (error) {
-    console.error('Token verification failed:', error)
+    console.error('Token verification failed')
     return null
   }
 }
