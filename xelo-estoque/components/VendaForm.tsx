@@ -72,7 +72,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
         <div className="text-center py-8">
           <div className="text-4xl mb-3">⚠️</div>
           <p className="text-yellow-400">
-            No available positions to trade. Add products first.
+            No available products to sell. Add products first.
           </p>
         </div>
       </div>
@@ -124,7 +124,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
             id="canal"
             required
             value={form.canal}
-            onChange={e => setForm({...form, canal: e.target.value})}
+            onChange={e => setForm({ ...form, canal: e.target.value })}
             className="input-futuristic"
           >
             <option value="ML">Mercado Livre</option>
@@ -142,7 +142,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
             type="date"
             required
             value={form.dataVenda}
-            onChange={e => setForm({...form, dataVenda: e.target.value})}
+            onChange={e => setForm({ ...form, dataVenda: e.target.value })}
             className="input-futuristic font-mono"
           />
         </div>
@@ -156,7 +156,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
             max={produtoSelecionado?.quantidade || 1}
             required
             value={form.quantidade}
-            onChange={e => setForm({...form, quantidade: e.target.value})}
+            onChange={e => setForm({ ...form, quantidade: e.target.value })}
             className="input-futuristic"
           />
           {produtoSelecionado && (
@@ -175,7 +175,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
             min="0"
             required
             value={form.precoReal}
-            onChange={e => setForm({...form, precoReal: e.target.value})}
+            onChange={e => setForm({ ...form, precoReal: e.target.value })}
             className="input-futuristic font-mono"
             placeholder="0.00"
           />
