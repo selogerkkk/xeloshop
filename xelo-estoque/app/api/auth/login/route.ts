@@ -17,16 +17,9 @@ export async function POST(request: Request) {
       where: { email }
     })
 
-    if (!user) {
+    if (!user || !user.ativo) {
       return NextResponse.json(
         { error: 'Credenciais inválidas' },
-        { status: 401 }
-      )
-    }
-
-    if (!user.ativo) {
-      return NextResponse.json(
-        { error: 'Usuário desativado' },
         { status: 401 }
       )
     }
