@@ -1,0 +1,19 @@
+# Root dependencies
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
