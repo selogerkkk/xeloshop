@@ -114,7 +114,7 @@
   @apply w-full bg-black/50 border border-emerald-900/30 rounded py-2 pr-3 text-white placeholder-gray-500;
   @apply focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30;
   transition: all 0.2s;
-  padding-left: 2.75rem !important;
+  padding-left: 2.75rem;
 }
 
 /* Icon wrapper for inputs with icons */
@@ -154,75 +154,6 @@
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
   animation: draw 1s ease-out forwards;
-}
-
-/* Floating orbs animations - increased visibility */
-@keyframes float-1 {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.3;
-  }
-  25% {
-    transform: translate(50px, -30px) scale(1.1);
-    opacity: 0.5;
-  }
-  50% {
-    transform: translate(20px, -60px) scale(0.95);
-    opacity: 0.4;
-  }
-  75% {
-    transform: translate(-30px, -20px) scale(1.05);
-    opacity: 0.25;
-  }
-}
-
-@keyframes float-2 {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.3;
-  }
-  33% {
-    transform: translate(-40px, 40px) scale(1.15);
-    opacity: 0.5;
-  }
-  66% {
-    transform: translate(30px, 20px) scale(0.9);
-    opacity: 0.2;
-  }
-}
-
-@keyframes float-3 {
-  0%, 100% {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 0.2;
-  }
-  50% {
-    transform: translate(-45%, -55%) scale(1.2);
-    opacity: 0.4;
-  }
-}
-
-@keyframes float-4 {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.35;
-  }
-  20% {
-    transform: translate(60px, 20px) scale(1.1);
-    opacity: 0.5;
-  }
-  40% {
-    transform: translate(30px, -40px) scale(0.95);
-    opacity: 0.25;
-  }
-  60% {
-    transform: translate(-20px, -30px) scale(1.05);
-    opacity: 0.45;
-  }
-  80% {
-    transform: translate(-40px, 10px) scale(0.98);
-    opacity: 0.3;
-  }
 }
 
 /* Floating orbs - more natural wide movement */

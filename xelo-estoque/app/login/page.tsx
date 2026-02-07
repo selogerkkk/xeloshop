@@ -2,8 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-
 export default function LoginPage() {
   const router = useRouter()
   const [isLogin, setIsLogin] = useState(true)
@@ -40,8 +38,9 @@ export default function LoginPage() {
       } else {
         setError(data.error || 'Erro ao autenticar')
       }
-    } catch {
-      setError('Erro de conexão')
+    } catch (err) {
+      console.error('Authentication error:', err)
+      setError('Ocorreu um erro ao autenticar. Tente novamente.')
     } finally {
       setLoading(false)
     }

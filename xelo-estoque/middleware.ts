@@ -2,14 +2,13 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifyToken } from './lib/auth'
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/auth/login', '/api/auth/register']
-const PUBLIC_API_PATHS = ['/api/auth/login', '/api/auth/register', '/api/auth/logout']
+const PUBLIC_PATHS = ['/login', '/register', '/api/auth/login', '/api/auth/register', '/api/auth/logout']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Allow public paths
-  if (PUBLIC_PATHS.includes(pathname) || PUBLIC_API_PATHS.some(path => pathname.startsWith(path))) {
+  if (PUBLIC_PATHS.includes(pathname)) {
     return NextResponse.next()
   }
 

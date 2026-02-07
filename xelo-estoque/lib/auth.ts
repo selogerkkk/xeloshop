@@ -2,7 +2,10 @@ import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production'
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) {
+  throw new Error('Missing environment variable: JWT_SECRET')
+}
 const TOKEN_NAME = 'auth-token'
 
 export interface UserPayload {
@@ -38,7 +41,8 @@ export async function verifyToken(token: string): Promise<UserPayload | null> {
       email: String(payload.email),
       nome: String(payload.nome)
     }
-  } catch {
+  } catch (error) {
+    console.error('Token verification failed')
     return null
   }
 }
