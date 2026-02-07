@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { Header } from '@/components/Header'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,21 +18,8 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark">
       <body className={`${inter.className} min-h-screen bg-black`}>
-        <main className="min-h-screen p-4 md:p-6 lg:p-8">
-          <header className="mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-emerald-400 text-glow">
-                  Xeloshop - Controle de Estoque
-                </h1>
-                <p className="text-gray-500 text-sm mt-1">Controle de Estoque e Vendas</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-500 font-mono">LIVE</span>
-              </div>
-            </div>
-          </header>
+        <main className="min-h-screen">
+          <Header />
           {children}
         </main>
       </body>
