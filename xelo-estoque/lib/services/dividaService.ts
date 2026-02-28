@@ -161,29 +161,30 @@ export async function quitarDivida(id: string): Promise<dividas_ajuste> {
 export async function compensarDividasComSaldo(
   socioId: string
 ): Promise<{ compensado: number; dividasQuitadas: string[] }> {
-  const [socio, dividasAtivas] = await Promise.all([
-    prisma.socios.findUnique({ where: { id: socioId } }),
-    prisma.dividas_ajuste.findMany({
+  return prisma.$transaction(async (tx) => {
+    const socio = await tx.socios.findUnique({
+      where: { id: socioId },
+    })
+
+    if (!socio) {
+      throw new Error('Sócio não encontrado')
+    }
+
+    const dividasAtivas = await tx.dividas_ajuste.findMany({
       where: { socioId, status: 'ATIVA' },
       orderBy: { dataCriacao: 'asc' },
-    }),
-  ])
+    })
 
-  if (!socio) {
-    throw new Error('Sócio não encontrado')
-  }
+    let saldoDisponivel = Number(socio.saldoDisponivel)
+    let totalCompensado = 0
+    const dividasQuitadas: string[] = []
 
-  let saldoDisponivel = Number(socio.saldoDisponivel)
-  let totalCompensado = 0
-  const dividasQuitadas: string[] = []
+    for (const divida of dividasAtivas) {
+      if (saldoDisponivel <= 0) break
 
-  for (const divida of dividasAtivas) {
-    if (saldoDisponivel <= 0) break
+      const valorDivida = Number(divida.valorPendente)
+      const valorCompensacao = Math.min(valorDivida, saldoDisponivel)
 
-    const valorDivida = Number(divida.valorPendente)
-    const valorCompensacao = Math.min(valorDivida, saldoDisponivel)
-
-    await prisma.$transaction(async (tx) => {
       // Atualiza saldo do sócio
       await tx.socios.update({
         where: { id: socioId },
@@ -204,20 +205,20 @@ export async function compensarDividasComSaldo(
           dataQuitacao: novoValorPendente === 0 ? new Date() : undefined,
         },
       })
-    })
 
-    saldoDisponivel -= valorCompensacao
-    totalCompensado += valorCompensacao
+      saldoDisponivel -= valorCompensacao
+      totalCompensado += valorCompensacao
 
-    if (valorCompensacao === valorDivida) {
-      dividasQuitadas.push(divida.id)
+      if (valorCompensacao === valorDivida) {
+        dividasQuitadas.push(divida.id)
+      }
     }
-  }
 
-  return {
-    compensado: totalCompensado,
-    dividasQuitadas,
-  }
+    return {
+      compensado: totalCompensado,
+      dividasQuitadas,
+    }
+  })
 }
 
 /**

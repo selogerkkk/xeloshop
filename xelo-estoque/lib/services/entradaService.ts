@@ -194,15 +194,6 @@ export async function criarEntrada(
     throw new Error('Custo unitário não pode ser negativo')
   }
 
-  const estoque = await prisma.estoques.findUnique({
-    where: { id: input.estoqueId },
-    include: { cotas: true },
-  })
-
-  if (!estoque) {
-    throw new Error('Estoque não encontrado')
-  }
-
   const custoTotal = input.quantidade * input.custoUnitario
 
   // Valida pagamentos
@@ -210,7 +201,17 @@ export async function criarEntrada(
 
   // Executa tudo em uma transação
   return prisma.$transaction(async (tx) => {
-    // 1. Cria a entrada
+    // 1. Busca estoque DENTRO da transação para garantir consistência
+    const estoque = await tx.estoques.findUnique({
+      where: { id: input.estoqueId },
+      include: { cotas: true },
+    })
+
+    if (!estoque) {
+      throw new Error('Estoque não encontrado')
+    }
+
+    // 2. Cria a entrada
     const entrada = await tx.entradas.create({
       data: {
         id: crypto.randomUUID(),
@@ -224,7 +225,7 @@ export async function criarEntrada(
       },
     })
 
-    // 2. Cria os pagamentos
+    // 3. Cria os pagamentos
     await tx.pagamentos_entrada.createMany({
       data: input.pagamentos.map((p) => ({
         id: crypto.randomUUID(),
@@ -235,7 +236,7 @@ export async function criarEntrada(
       })),
     })
 
-    // 3. Atualiza o estoque (quantidade e custo médio)
+    // 4. Atualiza o estoque (quantidade e custo médio)
     const valorTotalInvestido = Number(estoque.valorTotalInvestido) + custoTotal
     const novaQuantidade = estoque.quantidadeTotal + input.quantidade
     const novoCustoMedio =
@@ -253,7 +254,7 @@ export async function criarEntrada(
       },
     })
 
-    // 4. Atualiza total investido dos sócios
+    // 5. Atualiza total investido dos sócios
     for (const pagamento of input.pagamentos) {
       await tx.socios.update({
         where: { id: pagamento.socioId },
@@ -265,11 +266,12 @@ export async function criarEntrada(
       })
     }
 
-    // 5. Recalcula as cotas do estoque
+    // 6. Recalcula as cotas do estoque (passando transaction client)
     await recalcularCotasAposEntrada(
       input.estoqueId,
       custoTotal,
-      input.pagamentos
+      input.pagamentos,
+      tx
     )
 
     return entrada

@@ -320,26 +320,31 @@ export async function previewDistribuicao(
 export async function criarVenda(
   input: CreateVendaInput
 ): Promise<{ vendaId: string }> {
-  // Validações
+  // Validações básicas
   if (!input.canal || !input.itens || input.itens.length === 0) {
     throw new Error('Canal e pelo menos um item são obrigatórios')
   }
 
-  // Verifica disponibilidade em todos os estoques
-  for (const item of input.itens) {
-    const disponivel = await verificarDisponibilidade(
-      item.estoqueId,
-      item.quantidade
-    )
-    if (!disponivel) {
-      throw new Error(
-        `Quantidade insuficiente no estoque ${item.estoqueId}`
-      )
-    }
-  }
-
   // Executa tudo em uma transação
   return prisma.$transaction(async (tx) => {
+    // Verifica disponibilidade DENTRO da transação (evita TOCTOU)
+    for (const item of input.itens) {
+      const estoque = await tx.estoques.findUnique({
+        where: { id: item.estoqueId },
+        select: { quantidadeDisponivel: true, nome: true }
+      })
+
+      if (!estoque) {
+        throw new Error(`Estoque ${item.estoqueId} não encontrado`)
+      }
+
+      if (estoque.quantidadeDisponivel < item.quantidade) {
+        throw new Error(
+          `Quantidade insuficiente no estoque ${estoque.nome}. Disponível: ${estoque.quantidadeDisponivel}`
+        )
+      }
+    }
+
     let receitaTotal = 0
     let custoTotal = 0
     let lucroTotal = 0

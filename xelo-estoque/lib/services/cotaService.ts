@@ -1,5 +1,11 @@
 import { prisma } from '@/lib/prisma'
-import type { cotas } from '@prisma/client'
+import type { cotas, PrismaClient } from '@prisma/client'
+import type { DefaultArgs } from '@prisma/client/runtime/library'
+
+type TransactionClient = Omit<
+  PrismaClient<DefaultArgs, never, DefaultArgs>,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>
 
 export interface CreateCotaInput {
   estoqueId: string
@@ -127,12 +133,12 @@ export async function calcularPercentualTotal(
 export async function validarPercentual(
   estoqueId: string,
   novoPercentual: number,
-  excluirCotaId?: string
+  excluirSocioId?: string
 ): Promise<{ valido: boolean; restante: number }> {
   const cotas = await prisma.cotas.findMany({
     where: {
       estoqueId,
-      socioId: excluirCotaId ? { not: excluirCotaId } : undefined,
+      socioId: excluirSocioId ? { not: excluirSocioId } : undefined,
     },
   })
 
@@ -195,9 +201,12 @@ export async function criarCotasEmLote(
 export async function recalcularCotasAposEntrada(
   estoqueId: string,
   valorInvestido: number,
-  pagamentos: { socioId: string; valor: number }[]
+  pagamentos: { socioId: string; valor: number }[],
+  tx?: TransactionClient
 ): Promise<void> {
-  const estoque = await prisma.estoques.findUnique({
+  const client = tx || prisma
+
+  const estoque = await client.estoques.findUnique({
     where: { id: estoqueId },
     include: { cotas: true },
   })
@@ -211,19 +220,27 @@ export async function recalcularCotasAposEntrada(
   // Se não há cotas existentes, cria novas baseadas nos pagamentos
   if (estoque.cotas.length === 0) {
     const percentuais = calcularPercentuaisDosPagamentos(pagamentos)
-    await prisma.$transaction(
-      percentuais.map((p) =>
-        prisma.cotas.create({
-          data: {
-            id: crypto.randomUUID(),
-            estoqueId,
-            socioId: p.socioId,
-            percentual: p.percentual,
-            valorInvestido: p.valor,
-          },
-        })
-      )
+    const operacoes = percentuais.map((p) =>
+      client.cotas.create({
+        data: {
+          id: crypto.randomUUID(),
+          estoqueId,
+          socioId: p.socioId,
+          percentual: p.percentual,
+          valorInvestido: p.valor,
+        },
+      })
     )
+
+    if (tx) {
+      // Se estamos em uma transação, executa operações individualmente
+      for (const op of operacoes) {
+        await op
+      }
+    } else {
+      // Caso contrário, usa $transaction
+      await prisma.$transaction(operacoes)
+    }
     return
   }
 
@@ -257,31 +274,39 @@ export async function recalcularCotasAposEntrada(
     0
   )
 
-  await prisma.$transaction(
-    cotasAtualizadas.map((c) => {
-      const percentual =
-        valorTotalGeral > 0 ? (c.valorInvestido / valorTotalGeral) * 100 : 0
-      return prisma.cotas.upsert({
-        where: {
-          estoqueId_socioId: {
-            estoqueId,
-            socioId: c.socioId,
-          },
-        },
-        update: {
-          valorInvestido: c.valorInvestido,
-          percentual,
-        },
-        create: {
-          id: crypto.randomUUID(),
+  const operacoes = cotasAtualizadas.map((c) => {
+    const percentual =
+      valorTotalGeral > 0 ? (c.valorInvestido / valorTotalGeral) * 100 : 0
+    return client.cotas.upsert({
+      where: {
+        estoqueId_socioId: {
           estoqueId,
           socioId: c.socioId,
-          valorInvestido: c.valorInvestido,
-          percentual,
         },
-      })
+      },
+      update: {
+        valorInvestido: c.valorInvestido,
+        percentual,
+      },
+      create: {
+        id: crypto.randomUUID(),
+        estoqueId,
+        socioId: c.socioId,
+        valorInvestido: c.valorInvestido,
+        percentual,
+      },
     })
-  )
+  })
+
+  if (tx) {
+    // Se estamos em uma transação, executa operações individualmente
+    for (const op of operacoes) {
+      await op
+    }
+  } else {
+    // Caso contrário, usa $transaction
+    await prisma.$transaction(operacoes)
+  }
 }
 
 /**

@@ -1,5 +1,11 @@
 import { prisma } from '@/lib/prisma'
-import type { TipoSocio, socios } from '@prisma/client'
+import type { TipoSocio, socios, PrismaClient } from '@prisma/client'
+import type { DefaultArgs } from '@prisma/client/runtime/library'
+
+type TransactionClient = Omit<
+  PrismaClient<DefaultArgs, never, DefaultArgs>,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>
 
 export interface CreateSocioInput {
   nome: string
@@ -222,9 +228,12 @@ export async function liberarSaldoPendente(
  */
 export async function processarSaque(
   socioId: string,
-  valor: number
+  valor: number,
+  tx?: TransactionClient
 ): Promise<void> {
-  const socio = await prisma.socios.findUnique({
+  const client = tx || prisma
+
+  const socio = await client.socios.findUnique({
     where: { id: socioId },
   })
 
@@ -236,7 +245,7 @@ export async function processarSaque(
     throw new Error('Saldo insuficiente')
   }
 
-  await prisma.socios.update({
+  await client.socios.update({
     where: { id: socioId },
     data: {
       saldoDisponivel: {

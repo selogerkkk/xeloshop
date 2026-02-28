@@ -126,9 +126,9 @@ export async function atualizarStatusSaque(
   }
 
   return prisma.$transaction(async (tx) => {
-    // Se está sendo pago, processa o saque
+    // Se está sendo pago, processa o saque (passando transaction client)
     if (status === 'PAGO') {
-      await processarSaque(saque.socioId, Number(saque.valor))
+      await processarSaque(saque.socioId, Number(saque.valor), tx)
     }
 
     // Atualiza o saque
