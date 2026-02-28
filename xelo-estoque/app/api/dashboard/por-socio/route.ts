@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import type { distribuicoes_lucro, dividas_ajuste, saques } from '@prisma/client'
+
+interface DistribuicaoComValor extends distribuicoes_lucro {
+  valor: number
+}
+
+interface DividaComValorPendente extends dividas_ajuste {
+  valorPendente: number
+}
 
 export async function GET(request: Request) {
   try {
@@ -48,24 +57,24 @@ export async function GET(request: Request) {
 
     // Calcula totais
     const totalDistribuicoesPendentes = socio.distribuicoes_lucro
-      .filter((d: any) => d.status === 'PENDENTE')
-      .reduce((sum: any, d: any) => sum + Number(d.valor), 0)
+      .filter((d: DistribuicaoComValor) => d.status === 'PENDENTE')
+      .reduce((sum: number, d: DistribuicaoComValor) => sum + Number(d.valor), 0)
 
     const totalDistribuicoesLiberadas = socio.distribuicoes_lucro
-      .filter((d: any) => d.status === 'LIBERADO')
-      .reduce((sum: any, d: any) => sum + Number(d.valor), 0)
+      .filter((d: DistribuicaoComValor) => d.status === 'LIBERADO')
+      .reduce((sum: number, d: DistribuicaoComValor) => sum + Number(d.valor), 0)
 
     const totalDistribuicoesRetidas = socio.distribuicoes_lucro
-      .filter((d: any) => d.status === 'RETIDO')
-      .reduce((sum: any, d: any) => sum + Number(d.valor), 0)
+      .filter((d: DistribuicaoComValor) => d.status === 'RETIDO')
+      .reduce((sum: number, d: DistribuicaoComValor) => sum + Number(d.valor), 0)
 
     const totalDividas = socio.dividas_ajuste.reduce(
-      (sum: any, d: any) => sum + Number(d.valorPendente),
+      (sum: number, d: DividaComValorPendente) => sum + Number(d.valorPendente),
       0
     )
 
     // Posições em estoques (cotas)
-    const posicoes = socio.cotas.map((c: any) => ({
+    const posicoes = socio.cotas.map((c) => ({
       estoqueId: c.estoqueId,
       estoqueNome: c.estoques.nome,
       tipo: c.estoques.tipo,
@@ -93,7 +102,7 @@ export async function GET(request: Request) {
         pendente: totalDistribuicoesPendentes,
         liberado: totalDistribuicoesLiberadas,
         retido: totalDistribuicoesRetidas,
-        historicoRecente: socio.distribuicoes_lucro.map((d: any) => ({
+        historicoRecente: socio.distribuicoes_lucro.map((d: DistribuicaoComValor) => ({
           id: d.id,
           valor: Number(d.valor),
           status: d.status,
@@ -101,7 +110,7 @@ export async function GET(request: Request) {
         })),
       },
       saques: {
-        recentes: socio.saques.map((s: any) => ({
+        recentes: socio.saques.map((s: saques) => ({
           id: s.id,
           valor: Number(s.valor),
           status: s.status,
@@ -111,7 +120,7 @@ export async function GET(request: Request) {
       },
       dividas: {
         total: totalDividas,
-        items: socio.dividas_ajuste.map((d: any) => ({
+        items: socio.dividas_ajuste.map((d: DividaComValorPendente) => ({
           id: d.id,
           valorOriginal: Number(d.valorOriginal),
           valorPendente: Number(d.valorPendente),

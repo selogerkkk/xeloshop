@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     // Filtra no JavaScript se não quiser mostrar inativos
     const produtosFiltrados = todos
       ? produtos
-      : produtos.filter(p => p.ativo !== false)
+      : produtos.filter(p => p.ativo)
 
     return NextResponse.json(produtosFiltrados)
   } catch (error: any) {

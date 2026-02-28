@@ -35,11 +35,9 @@ export async function POST(request: Request) {
 
     const user = await prisma.usuarios.create({
       data: {
-        id: crypto.randomUUID(),
         nome,
         email,
         passwordHash,
-        atualizadoEm: new Date()
       }
     })
 

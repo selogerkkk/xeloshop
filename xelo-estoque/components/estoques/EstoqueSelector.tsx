@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { CotaVisualizer } from './CotaVisualizer'
 
 interface Estoque {
@@ -31,6 +31,12 @@ export function EstoqueSelector({
 }: EstoqueSelectorProps) {
   const [estoques, setEstoques] = useState<Estoque[]>([])
   const [loading, setLoading] = useState(false)
+  const onSelectRef = useRef(onSelect)
+
+  // Atualiza a ref quando onSelect muda
+  useEffect(() => {
+    onSelectRef.current = onSelect
+  }, [onSelect])
 
   useEffect(() => {
     if (!produtoId) return
@@ -42,11 +48,11 @@ export function EstoqueSelector({
         setEstoques(data)
         // Auto-select oldest (first in list) if none selected
         if (data.length > 0 && !selectedId) {
-          onSelect(data[0].id)
+          onSelectRef.current(data[0].id)
         }
       })
       .finally(() => setLoading(false))
-  }, [produtoId, quantidadeDesejada, selectedId, onSelect])
+  }, [produtoId, quantidadeDesejada, selectedId])
 
   if (loading) {
     return <div className="text-sm text-gray-500">Carregando estoques...</div>

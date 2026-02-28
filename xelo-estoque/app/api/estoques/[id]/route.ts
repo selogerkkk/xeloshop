@@ -6,14 +6,14 @@ import {
 } from '@/lib/services/estoqueService'
 
 interface RouteParams {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
   try {
-    const { id } = await params
+    const { id } = params
     const estoque = await buscarEstoquePorId(id)
 
     if (!estoque) {
@@ -35,7 +35,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
-    const { id } = await params
+    const { id } = params
     const body = await request.json()
     const { nome, localFisico, ativo } = body
 
@@ -56,7 +56,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
-    const { id } = await params
+    const { id } = params
     await excluirEstoque(id)
 
     return NextResponse.json({ success: true })
