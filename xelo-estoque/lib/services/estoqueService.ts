@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { TipoEstoque, Estoque } from '@prisma/client'
+import type { TipoEstoque, estoques } from '@prisma/client'
 
 export interface CreateEstoqueInput {
   produtoId: string
@@ -14,7 +14,7 @@ export interface UpdateEstoqueInput {
   ativo?: boolean
 }
 
-export interface EstoqueComCotas extends Estoque {
+export interface EstoqueComCotas extends estoques {
   cotas: {
     id: string
     socioId: string
@@ -23,7 +23,7 @@ export interface EstoqueComCotas extends Estoque {
     percentual: number
     valorInvestido: number
   }[]
-  produto: {
+  produtos: {
     id: string
     nome: string
   }
@@ -38,15 +38,15 @@ export async function listarEstoques(
     tipo?: TipoEstoque
     ativo?: boolean
   }
-): Promise<Estoque[]> {
-  return prisma.estoque.findMany({
+): Promise<estoques[]> {
+  return prisma.estoques.findMany({
     where: {
       produtoId: filtros?.produtoId,
       tipo: filtros?.tipo,
       ativo: filtros?.ativo,
     },
     include: {
-      produto: {
+      produtos: {
         select: {
           id: true,
           nome: true,
@@ -63,13 +63,13 @@ export async function listarEstoques(
 export async function buscarEstoquePorId(
   id: string
 ): Promise<EstoqueComCotas | null> {
-  const estoque = await prisma.estoque.findUnique({
+  const estoque = await prisma.estoques.findUnique({
     where: { id },
     include: {
-      produto: true,
+      produtos: true,
       cotas: {
         include: {
-          socio: true,
+          socios: true,
         },
       },
       entradas: {
@@ -83,11 +83,11 @@ export async function buscarEstoquePorId(
 
   return {
     ...estoque,
-    cotas: estoque.cotas.map((c) => ({
+    cotas: estoque.cotas.map((c: typeof estoque.cotas[0]) => ({
       id: c.id,
       socioId: c.socioId,
-      socioNome: c.socio.nome,
-      socioCor: c.socio.cor,
+      socioNome: c.socios.nome,
+      socioCor: c.socios.cor,
       percentual: Number(c.percentual),
       valorInvestido: Number(c.valorInvestido),
     })),
@@ -99,8 +99,8 @@ export async function buscarEstoquePorId(
  */
 export async function criarEstoque(
   input: CreateEstoqueInput
-): Promise<Estoque> {
-  const produto = await prisma.produto.findUnique({
+): Promise<estoques> {
+  const produto = await prisma.produtos.findUnique({
     where: { id: input.produtoId },
   })
 
@@ -108,8 +108,9 @@ export async function criarEstoque(
     throw new Error('Produto não encontrado')
   }
 
-  return prisma.estoque.create({
+  return prisma.estoques.create({
     data: {
+      id: crypto.randomUUID(),
       produtoId: input.produtoId,
       nome: input.nome,
       tipo: input.tipo,
@@ -118,6 +119,7 @@ export async function criarEstoque(
       quantidadeDisponivel: 0,
       custoMedio: 0,
       valorTotalInvestido: 0,
+      atualizadoEm: new Date(),
     },
   })
 }
@@ -128,8 +130,8 @@ export async function criarEstoque(
 export async function atualizarEstoque(
   id: string,
   input: UpdateEstoqueInput
-): Promise<Estoque> {
-  return prisma.estoque.update({
+): Promise<estoques> {
+  return prisma.estoques.update({
     where: { id },
     data: input,
   })
@@ -139,12 +141,12 @@ export async function atualizarEstoque(
  * Exclui um estoque (apenas se vazio)
  */
 export async function excluirEstoque(id: string): Promise<void> {
-  const estoque = await prisma.estoque.findUnique({
+  const estoque = await prisma.estoques.findUnique({
     where: { id },
     include: {
       cotas: true,
       entradas: true,
-      vendaItens: true,
+      venda_itens: true,
     },
   })
 
@@ -156,11 +158,11 @@ export async function excluirEstoque(id: string): Promise<void> {
     throw new Error('Não é possível excluir estoque com quantidade')
   }
 
-  if (estoque.entradas.length > 0 || estoque.vendaItens.length > 0) {
+  if (estoque.entradas.length > 0 || estoque.venda_itens.length > 0) {
     throw new Error('Não é possível excluir estoque com movimentações')
   }
 
-  await prisma.estoque.delete({
+  await prisma.estoques.delete({
     where: { id },
   })
 }
@@ -171,8 +173,8 @@ export async function excluirEstoque(id: string): Promise<void> {
 export async function buscarEstoquesDisponiveis(
   produtoId: string,
   quantidadeMinima = 1
-): Promise<Estoque[]> {
-  return prisma.estoque.findMany({
+): Promise<estoques[]> {
+  return prisma.estoques.findMany({
     where: {
       produtoId,
       ativo: true,
@@ -181,7 +183,7 @@ export async function buscarEstoquesDisponiveis(
       },
     },
     include: {
-      produto: {
+      produtos: {
         select: {
           id: true,
           nome: true,
@@ -189,7 +191,7 @@ export async function buscarEstoquesDisponiveis(
       },
       cotas: {
         include: {
-          socio: {
+          socios: {
             select: {
               id: true,
               nome: true,
@@ -211,7 +213,7 @@ export async function atualizarAposEntrada(
   quantidade: number,
   custoUnitario: number
 ): Promise<void> {
-  const estoque = await prisma.estoque.findUnique({
+  const estoque = await prisma.estoques.findUnique({
     where: { id: estoqueId },
   })
 
@@ -225,7 +227,7 @@ export async function atualizarAposEntrada(
   const novoCustoMedio =
     novaQuantidade > 0 ? novoValorTotal / novaQuantidade : 0
 
-  await prisma.estoque.update({
+  await prisma.estoques.update({
     where: { id: estoqueId },
     data: {
       quantidadeTotal: novaQuantidade,
@@ -245,7 +247,7 @@ export async function atualizarAposVenda(
   estoqueId: string,
   quantidade: number
 ): Promise<void> {
-  const estoque = await prisma.estoque.findUnique({
+  const estoque = await prisma.estoques.findUnique({
     where: { id: estoqueId },
   })
 
@@ -257,7 +259,7 @@ export async function atualizarAposVenda(
     throw new Error('Quantidade insuficiente em estoque')
   }
 
-  await prisma.estoque.update({
+  await prisma.estoques.update({
     where: { id: estoqueId },
     data: {
       quantidadeTotal: {
@@ -277,7 +279,7 @@ export async function restaurarAposCancelamento(
   estoqueId: string,
   quantidade: number
 ): Promise<void> {
-  const estoque = await prisma.estoque.findUnique({
+  const estoque = await prisma.estoques.findUnique({
     where: { id: estoqueId },
   })
 
@@ -285,7 +287,7 @@ export async function restaurarAposCancelamento(
     throw new Error('Estoque não encontrado')
   }
 
-  await prisma.estoque.update({
+  await prisma.estoques.update({
     where: { id: estoqueId },
     data: {
       quantidadeTotal: {
@@ -302,7 +304,7 @@ export async function restaurarAposCancelamento(
  * Calcula o custo médio atual do estoque
  */
 export function calcularCustoMedio(
-  estoque: Estoque
+  estoque: estoques
 ): number {
   return Number(estoque.custoMedio)
 }
@@ -314,7 +316,7 @@ export async function verificarDisponibilidade(
   estoqueId: string,
   quantidade: number
 ): Promise<boolean> {
-  const estoque = await prisma.estoque.findUnique({
+  const estoque = await prisma.estoques.findUnique({
     where: { id: estoqueId },
     select: { quantidadeDisponivel: true },
   })

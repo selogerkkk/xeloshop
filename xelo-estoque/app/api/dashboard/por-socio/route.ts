@@ -13,19 +13,19 @@ export async function GET(request: Request) {
       )
     }
 
-    const socio = await prisma.socio.findUnique({
+    const socio = await prisma.socios.findUnique({
       where: { id: socioId },
       include: {
         cotas: {
           include: {
-            estoque: {
+            estoques: {
               include: {
-                produto: true,
+                produtos: true,
               },
             },
           },
         },
-        distribuicoes: {
+        distribuicoes_lucro: {
           orderBy: { dataDistribuicao: 'desc' },
           take: 50,
         },
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
           orderBy: { dataSolicitacao: 'desc' },
           take: 20,
         },
-        dividas: {
+        dividas_ajuste: {
           where: { status: 'ATIVA' },
         },
       },
@@ -47,33 +47,33 @@ export async function GET(request: Request) {
     }
 
     // Calcula totais
-    const totalDistribuicoesPendentes = socio.distribuicoes
-      .filter((d) => d.status === 'PENDENTE')
-      .reduce((sum, d) => sum + Number(d.valor), 0)
+    const totalDistribuicoesPendentes = socio.distribuicoes_lucro
+      .filter((d: any) => d.status === 'PENDENTE')
+      .reduce((sum: any, d: any) => sum + Number(d.valor), 0)
 
-    const totalDistribuicoesLiberadas = socio.distribuicoes
-      .filter((d) => d.status === 'LIBERADO')
-      .reduce((sum, d) => sum + Number(d.valor), 0)
+    const totalDistribuicoesLiberadas = socio.distribuicoes_lucro
+      .filter((d: any) => d.status === 'LIBERADO')
+      .reduce((sum: any, d: any) => sum + Number(d.valor), 0)
 
-    const totalDistribuicoesRetidas = socio.distribuicoes
-      .filter((d) => d.status === 'RETIDO')
-      .reduce((sum, d) => sum + Number(d.valor), 0)
+    const totalDistribuicoesRetidas = socio.distribuicoes_lucro
+      .filter((d: any) => d.status === 'RETIDO')
+      .reduce((sum: any, d: any) => sum + Number(d.valor), 0)
 
-    const totalDividas = socio.dividas.reduce(
-      (sum, d) => sum + Number(d.valorPendente),
+    const totalDividas = socio.dividas_ajuste.reduce(
+      (sum: any, d: any) => sum + Number(d.valorPendente),
       0
     )
 
     // Posições em estoques (cotas)
-    const posicoes = socio.cotas.map((c) => ({
+    const posicoes = socio.cotas.map((c: any) => ({
       estoqueId: c.estoqueId,
-      estoqueNome: c.estoque.nome,
-      tipo: c.estoque.tipo,
-      produtoNome: c.estoque.produto.nome,
-      quantidadeEmEstoque: c.estoque.quantidadeDisponivel,
+      estoqueNome: c.estoques.nome,
+      tipo: c.estoques.tipo,
+      produtoNome: c.estoques.produtos.nome,
+      quantidadeEmEstoque: c.estoques.quantidadeDisponivel,
       percentual: Number(c.percentual),
       valorInvestido: Number(c.valorInvestido),
-      valorAtual: Number(c.estoque.valorTotalInvestido) * (Number(c.percentual) / 100),
+      valorAtual: Number(c.estoques.valorTotalInvestido) * (Number(c.percentual) / 100),
     }))
 
     return NextResponse.json({
@@ -93,7 +93,7 @@ export async function GET(request: Request) {
         pendente: totalDistribuicoesPendentes,
         liberado: totalDistribuicoesLiberadas,
         retido: totalDistribuicoesRetidas,
-        historicoRecente: socio.distribuicoes.map((d) => ({
+        historicoRecente: socio.distribuicoes_lucro.map((d: any) => ({
           id: d.id,
           valor: Number(d.valor),
           status: d.status,
@@ -101,7 +101,7 @@ export async function GET(request: Request) {
         })),
       },
       saques: {
-        recentes: socio.saques.map((s) => ({
+        recentes: socio.saques.map((s: any) => ({
           id: s.id,
           valor: Number(s.valor),
           status: s.status,
@@ -111,7 +111,7 @@ export async function GET(request: Request) {
       },
       dividas: {
         total: totalDividas,
-        items: socio.dividas.map((d) => ({
+        items: socio.dividas_ajuste.map((d: any) => ({
           id: d.id,
           valorOriginal: Number(d.valorOriginal),
           valorPendente: Number(d.valorPendente),

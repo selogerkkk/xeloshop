@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { Cota } from '@prisma/client'
+import type { cotas } from '@prisma/client'
 
 export interface CreateCotaInput {
   estoqueId: string
@@ -18,11 +18,11 @@ export interface UpdateCotaInput {
  */
 export async function listarCotasDoEstoque(
   estoqueId: string
-): Promise<Cota[]> {
-  return prisma.cota.findMany({
+): Promise<cotas[]> {
+  return prisma.cotas.findMany({
     where: { estoqueId },
     include: {
-      socio: {
+      socios: {
         select: {
           id: true,
           nome: true,
@@ -40,8 +40,8 @@ export async function listarCotasDoEstoque(
 export async function buscarCota(
   estoqueId: string,
   socioId: string
-): Promise<Cota | null> {
-  return prisma.cota.findUnique({
+): Promise<cotas | null> {
+  return prisma.cotas.findUnique({
     where: {
       estoqueId_socioId: {
         estoqueId,
@@ -56,8 +56,8 @@ export async function buscarCota(
  */
 export async function criarOuAtualizarCota(
   input: CreateCotaInput
-): Promise<Cota> {
-  return prisma.cota.upsert({
+): Promise<cotas> {
+  return prisma.cotas.upsert({
     where: {
       estoqueId_socioId: {
         estoqueId: input.estoqueId,
@@ -69,6 +69,7 @@ export async function criarOuAtualizarCota(
       valorInvestido: input.valorInvestido,
     },
     create: {
+      id: crypto.randomUUID(),
       estoqueId: input.estoqueId,
       socioId: input.socioId,
       percentual: input.percentual,
@@ -84,7 +85,7 @@ export async function removerCota(
   estoqueId: string,
   socioId: string
 ): Promise<void> {
-  await prisma.cota.delete({
+  await prisma.cotas.delete({
     where: {
       estoqueId_socioId: {
         estoqueId,
@@ -98,7 +99,7 @@ export async function removerCota(
  * Remove todas as cotas de um estoque
  */
 export async function removerTodasCotas(estoqueId: string): Promise<void> {
-  await prisma.cota.deleteMany({
+  await prisma.cotas.deleteMany({
     where: { estoqueId },
   })
 }
@@ -109,7 +110,7 @@ export async function removerTodasCotas(estoqueId: string): Promise<void> {
 export async function calcularPercentualTotal(
   estoqueId: string
 ): Promise<number> {
-  const result = await prisma.cota.aggregate({
+  const result = await prisma.cotas.aggregate({
     where: { estoqueId },
     _sum: {
       percentual: true,
@@ -128,7 +129,7 @@ export async function validarPercentual(
   novoPercentual: number,
   excluirCotaId?: string
 ): Promise<{ valido: boolean; restante: number }> {
-  const cotas = await prisma.cota.findMany({
+  const cotas = await prisma.cotas.findMany({
     where: {
       estoqueId,
       socioId: excluirCotaId ? { not: excluirCotaId } : undefined,
@@ -155,7 +156,7 @@ export async function validarPercentual(
  */
 export async function criarCotasEmLote(
   cotas: CreateCotaInput[]
-): Promise<Cota[]> {
+): Promise<cotas[]> {
   const percentualTotal = cotas.reduce((sum, c) => sum + c.percentual, 0)
 
   if (percentualTotal !== 100) {
@@ -174,8 +175,9 @@ export async function criarCotasEmLote(
 
   return prisma.$transaction(
     cotas.map((c) =>
-      prisma.cota.create({
+      prisma.cotas.create({
         data: {
+          id: crypto.randomUUID(),
           estoqueId: c.estoqueId,
           socioId: c.socioId,
           percentual: c.percentual,
@@ -195,7 +197,7 @@ export async function recalcularCotasAposEntrada(
   valorInvestido: number,
   pagamentos: { socioId: string; valor: number }[]
 ): Promise<void> {
-  const estoque = await prisma.estoque.findUnique({
+  const estoque = await prisma.estoques.findUnique({
     where: { id: estoqueId },
     include: { cotas: true },
   })
@@ -211,8 +213,9 @@ export async function recalcularCotasAposEntrada(
     const percentuais = calcularPercentuaisDosPagamentos(pagamentos)
     await prisma.$transaction(
       percentuais.map((p) =>
-        prisma.cota.create({
+        prisma.cotas.create({
           data: {
+            id: crypto.randomUUID(),
             estoqueId,
             socioId: p.socioId,
             percentual: p.percentual,
@@ -258,7 +261,7 @@ export async function recalcularCotasAposEntrada(
     cotasAtualizadas.map((c) => {
       const percentual =
         valorTotalGeral > 0 ? (c.valorInvestido / valorTotalGeral) * 100 : 0
-      return prisma.cota.upsert({
+      return prisma.cotas.upsert({
         where: {
           estoqueId_socioId: {
             estoqueId,
@@ -270,6 +273,7 @@ export async function recalcularCotasAposEntrada(
           percentual,
         },
         create: {
+          id: crypto.randomUUID(),
           estoqueId,
           socioId: c.socioId,
           valorInvestido: c.valorInvestido,
@@ -310,7 +314,7 @@ export async function calcularDistribuicaoDoLucro(
   estoqueId: string,
   lucroTotal: number
 ): Promise<{ socioId: string; percentual: number; valor: number }[]> {
-  const cotas = await prisma.cota.findMany({
+  const cotas = await prisma.cotas.findMany({
     where: { estoqueId },
   })
 

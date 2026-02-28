@@ -1,8 +1,8 @@
 import { prisma } from '@/lib/prisma'
-import type { StatusDivida, DividaAjuste } from '@prisma/client'
+import type { StatusDivida, dividas_ajuste } from '@prisma/client'
 
-export interface DividaDetalhada extends DividaAjuste {
-  socio: {
+export interface DividaDetalhada extends dividas_ajuste {
+  socios: {
     id: string
     nome: string
     cor: string
@@ -18,13 +18,13 @@ export async function listarDividas(
     status?: StatusDivida
   }
 ): Promise<DividaDetalhada[]> {
-  return prisma.dividaAjuste.findMany({
+  return prisma.dividas_ajuste.findMany({
     where: {
       socioId: filtros?.socioId,
       status: filtros?.status,
     },
     include: {
-      socio: {
+      socios: {
         select: {
           id: true,
           nome: true,
@@ -40,10 +40,10 @@ export async function listarDividas(
  * Busca uma dívida por ID
  */
 export async function buscarDividaPorId(id: string): Promise<DividaDetalhada | null> {
-  return prisma.dividaAjuste.findUnique({
+  return prisma.dividas_ajuste.findUnique({
     where: { id },
     include: {
-      socio: {
+      socios: {
         select: {
           id: true,
           nome: true,
@@ -62,12 +62,12 @@ export async function criarDivida(
   valor: number,
   motivo: string,
   referenciaId?: string
-): Promise<DividaAjuste> {
+): Promise<dividas_ajuste> {
   if (valor <= 0) {
     throw new Error('Valor deve ser maior que zero')
   }
 
-  const socio = await prisma.socio.findUnique({
+  const socio = await prisma.socios.findUnique({
     where: { id: socioId },
   })
 
@@ -75,8 +75,9 @@ export async function criarDivida(
     throw new Error('Sócio não encontrado')
   }
 
-  return prisma.dividaAjuste.create({
+  return prisma.dividas_ajuste.create({
     data: {
+      id: crypto.randomUUID(),
       socioId,
       valorOriginal: valor,
       valorPendente: valor,
@@ -93,12 +94,12 @@ export async function criarDivida(
 export async function quitarParcialmenteDivida(
   id: string,
   valor: number
-): Promise<DividaAjuste> {
+): Promise<dividas_ajuste> {
   if (valor <= 0) {
     throw new Error('Valor deve ser maior que zero')
   }
 
-  const divida = await prisma.dividaAjuste.findUnique({
+  const divida = await prisma.dividas_ajuste.findUnique({
     where: { id },
   })
 
@@ -117,7 +118,7 @@ export async function quitarParcialmenteDivida(
   const novoValorPendente = Number(divida.valorPendente) - valor
   const status: StatusDivida = novoValorPendente === 0 ? 'QUITADA' : 'ATIVA'
 
-  return prisma.dividaAjuste.update({
+  return prisma.dividas_ajuste.update({
     where: { id },
     data: {
       valorPendente: novoValorPendente,
@@ -130,8 +131,8 @@ export async function quitarParcialmenteDivida(
 /**
  * Quitar uma dívida completamente
  */
-export async function quitarDivida(id: string): Promise<DividaAjuste> {
-  const divida = await prisma.dividaAjuste.findUnique({
+export async function quitarDivida(id: string): Promise<dividas_ajuste> {
+  const divida = await prisma.dividas_ajuste.findUnique({
     where: { id },
   })
 
@@ -143,7 +144,7 @@ export async function quitarDivida(id: string): Promise<DividaAjuste> {
     throw new Error('Apenas dívidas ativas podem ser quitadas')
   }
 
-  return prisma.dividaAjuste.update({
+  return prisma.dividas_ajuste.update({
     where: { id },
     data: {
       valorPendente: 0,
@@ -161,8 +162,8 @@ export async function compensarDividasComSaldo(
   socioId: string
 ): Promise<{ compensado: number; dividasQuitadas: string[] }> {
   const [socio, dividasAtivas] = await Promise.all([
-    prisma.socio.findUnique({ where: { id: socioId } }),
-    prisma.dividaAjuste.findMany({
+    prisma.socios.findUnique({ where: { id: socioId } }),
+    prisma.dividas_ajuste.findMany({
       where: { socioId, status: 'ATIVA' },
       orderBy: { dataCriacao: 'asc' },
     }),
@@ -184,7 +185,7 @@ export async function compensarDividasComSaldo(
 
     await prisma.$transaction(async (tx) => {
       // Atualiza saldo do sócio
-      await tx.socio.update({
+      await tx.socios.update({
         where: { id: socioId },
         data: {
           saldoDisponivel: {
@@ -195,7 +196,7 @@ export async function compensarDividasComSaldo(
 
       // Atualiza ou quita a dívida
       const novoValorPendente = valorDivida - valorCompensacao
-      await tx.dividaAjuste.update({
+      await tx.dividas_ajuste.update({
         where: { id: divida.id },
         data: {
           valorPendente: novoValorPendente,
@@ -229,8 +230,8 @@ export async function obterResumoDividas(): Promise<{
   valorTotalQuitado: number
 }> {
   const [ativas, quitadas] = await Promise.all([
-    prisma.dividaAjuste.findMany({ where: { status: 'ATIVA' } }),
-    prisma.dividaAjuste.findMany({ where: { status: 'QUITADA' } }),
+    prisma.dividas_ajuste.findMany({ where: { status: 'ATIVA' } }),
+    prisma.dividas_ajuste.findMany({ where: { status: 'QUITADA' } }),
   ])
 
   return {

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { StatusSaque, Saque } from '@prisma/client'
+import type { StatusSaque, saques } from '@prisma/client'
 import { processarSaque } from './socioService'
 
 export interface CreateSaqueInput {
@@ -12,8 +12,8 @@ export interface UpdateSaqueInput {
   status: StatusSaque
 }
 
-export interface SaqueDetalhado extends Saque {
-  socio: {
+export interface SaqueDetalhado extends saques {
+  socios: {
     id: string
     nome: string
     cor: string
@@ -29,13 +29,13 @@ export async function listarSaques(
     status?: StatusSaque
   }
 ): Promise<SaqueDetalhado[]> {
-  return prisma.saque.findMany({
+  return prisma.saques.findMany({
     where: {
       socioId: filtros?.socioId,
       status: filtros?.status,
     },
     include: {
-      socio: {
+      socios: {
         select: {
           id: true,
           nome: true,
@@ -51,10 +51,10 @@ export async function listarSaques(
  * Busca um saque por ID
  */
 export async function buscarSaquePorId(id: string): Promise<SaqueDetalhado | null> {
-  return prisma.saque.findUnique({
+  return prisma.saques.findUnique({
     where: { id },
     include: {
-      socio: {
+      socios: {
         select: {
           id: true,
           nome: true,
@@ -68,12 +68,12 @@ export async function buscarSaquePorId(id: string): Promise<SaqueDetalhado | nul
 /**
  * Cria uma solicitação de saque
  */
-export async function criarSaque(input: CreateSaqueInput): Promise<Saque> {
+export async function criarSaque(input: CreateSaqueInput): Promise<saques> {
   if (input.valor <= 0) {
     throw new Error('Valor deve ser maior que zero')
   }
 
-  const socio = await prisma.socio.findUnique({
+  const socio = await prisma.socios.findUnique({
     where: { id: input.socioId },
   })
 
@@ -85,8 +85,9 @@ export async function criarSaque(input: CreateSaqueInput): Promise<Saque> {
     throw new Error('Saldo disponível insuficiente')
   }
 
-  return prisma.saque.create({
+  return prisma.saques.create({
     data: {
+      id: crypto.randomUUID(),
       socioId: input.socioId,
       valor: input.valor,
       motivo: input.motivo,
@@ -101,8 +102,8 @@ export async function criarSaque(input: CreateSaqueInput): Promise<Saque> {
 export async function atualizarStatusSaque(
   id: string,
   status: StatusSaque
-): Promise<Saque> {
-  const saque = await prisma.saque.findUnique({
+): Promise<saques> {
+  const saque = await prisma.saques.findUnique({
     where: { id },
   })
 
@@ -131,7 +132,7 @@ export async function atualizarStatusSaque(
     }
 
     // Atualiza o saque
-    return tx.saque.update({
+    return tx.saques.update({
       where: { id },
       data: {
         status,
@@ -147,8 +148,8 @@ export async function atualizarStatusSaque(
 export async function cancelarSaque(
   id: string,
   motivo?: string
-): Promise<Saque> {
-  const saque = await prisma.saque.findUnique({
+): Promise<saques> {
+  const saque = await prisma.saques.findUnique({
     where: { id },
   })
 
@@ -160,7 +161,7 @@ export async function cancelarSaque(
     throw new Error('Apenas saques pendentes ou aprovados podem ser cancelados')
   }
 
-  return prisma.saque.update({
+  return prisma.saques.update({
     where: { id },
     data: {
       status: 'CANCELADO',
@@ -180,9 +181,9 @@ export async function obterResumoSaques(): Promise<{
   valorTotalPago: number
 }> {
   const [pendentes, aprovados, pagos] = await Promise.all([
-    prisma.saque.findMany({ where: { status: 'PENDENTE' } }),
-    prisma.saque.findMany({ where: { status: 'APROVADO' } }),
-    prisma.saque.findMany({ where: { status: 'PAGO' } }),
+    prisma.saques.findMany({ where: { status: 'PENDENTE' } }),
+    prisma.saques.findMany({ where: { status: 'APROVADO' } }),
+    prisma.saques.findMany({ where: { status: 'PAGO' } }),
   ])
 
   return {

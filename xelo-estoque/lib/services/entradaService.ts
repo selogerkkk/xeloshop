@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { TipoEntrada, Entrada } from '@prisma/client'
+import type { TipoEntrada, entradas } from '@prisma/client'
 import { atualizarAposEntrada } from './estoqueService'
 import { recalcularCotasAposEntrada, calcularPercentuaisDosPagamentos } from './cotaService'
 import { adicionarInvestimento } from './socioService'
@@ -20,16 +20,16 @@ export interface CreateEntradaInput {
   pagamentos: PagamentoInput[]
 }
 
-export interface EntradaDetalhada extends Entrada {
-  estoque: {
+export interface EntradaDetalhada extends entradas {
+  estoques: {
     id: string
     nome: string
-    produto: {
+    produtos: {
       id: string
       nome: string
     }
   }
-  pagamentos: {
+  pagamentos_entrada: {
     id: string
     socioId: string
     socioNome: string
@@ -49,7 +49,7 @@ export async function listarEntradas(
     dataFim?: Date
   }
 ): Promise<EntradaDetalhada[]> {
-  const entradas = await prisma.entrada.findMany({
+  const entradas = await prisma.entradas.findMany({
     where: {
       estoqueId: filtros?.estoqueId,
       tipo: filtros?.tipo,
@@ -59,9 +59,9 @@ export async function listarEntradas(
       },
     },
     include: {
-      estoque: {
+      estoques: {
         include: {
-          produto: {
+          produtos: {
             select: {
               id: true,
               nome: true,
@@ -69,9 +69,9 @@ export async function listarEntradas(
           },
         },
       },
-      pagamentos: {
+      pagamentos_entrada: {
         include: {
-          socio: {
+          socios: {
             select: {
               id: true,
               nome: true,
@@ -85,10 +85,10 @@ export async function listarEntradas(
 
   return entradas.map((e) => ({
     ...e,
-    pagamentos: e.pagamentos.map((p) => ({
+    pagamentos_entrada: e.pagamentos_entrada.map((p) => ({
       id: p.id,
       socioId: p.socioId,
-      socioNome: p.socio.nome,
+      socioNome: p.socios.nome,
       percentual: Number(p.percentual),
       valor: Number(p.valor),
     })),
@@ -101,12 +101,12 @@ export async function listarEntradas(
 export async function buscarEntradaPorId(
   id: string
 ): Promise<EntradaDetalhada | null> {
-  const entrada = await prisma.entrada.findUnique({
+  const entrada = await prisma.entradas.findUnique({
     where: { id },
     include: {
-      estoque: {
+      estoques: {
         include: {
-          produto: {
+          produtos: {
             select: {
               id: true,
               nome: true,
@@ -114,9 +114,9 @@ export async function buscarEntradaPorId(
           },
         },
       },
-      pagamentos: {
+      pagamentos_entrada: {
         include: {
-          socio: {
+          socios: {
             select: {
               id: true,
               nome: true,
@@ -131,10 +131,10 @@ export async function buscarEntradaPorId(
 
   return {
     ...entrada,
-    pagamentos: entrada.pagamentos.map((p) => ({
+    pagamentos_entrada: entrada.pagamentos_entrada.map((p) => ({
       id: p.id,
       socioId: p.socioId,
-      socioNome: p.socio.nome,
+      socioNome: p.socios.nome,
       percentual: Number(p.percentual),
       valor: Number(p.valor),
     })),
@@ -184,7 +184,7 @@ function validarPagamentos(
  */
 export async function criarEntrada(
   input: CreateEntradaInput
-): Promise<Entrada> {
+): Promise<entradas> {
   // Validações
   if (input.quantidade <= 0) {
     throw new Error('Quantidade deve ser maior que zero')
@@ -194,7 +194,7 @@ export async function criarEntrada(
     throw new Error('Custo unitário não pode ser negativo')
   }
 
-  const estoque = await prisma.estoque.findUnique({
+  const estoque = await prisma.estoques.findUnique({
     where: { id: input.estoqueId },
     include: { cotas: true },
   })
@@ -211,8 +211,9 @@ export async function criarEntrada(
   // Executa tudo em uma transação
   return prisma.$transaction(async (tx) => {
     // 1. Cria a entrada
-    const entrada = await tx.entrada.create({
+    const entrada = await tx.entradas.create({
       data: {
+        id: crypto.randomUUID(),
         estoqueId: input.estoqueId,
         tipo: input.tipo,
         quantidade: input.quantidade,
@@ -224,8 +225,9 @@ export async function criarEntrada(
     })
 
     // 2. Cria os pagamentos
-    await tx.pagamentoEntrada.createMany({
+    await tx.pagamentos_entrada.createMany({
       data: input.pagamentos.map((p) => ({
+        id: crypto.randomUUID(),
         entradaId: entrada.id,
         socioId: p.socioId,
         percentual: p.percentual,
@@ -239,7 +241,7 @@ export async function criarEntrada(
     const novoCustoMedio =
       novaQuantidade > 0 ? valorTotalInvestido / novaQuantidade : 0
 
-    await tx.estoque.update({
+    await tx.estoques.update({
       where: { id: input.estoqueId },
       data: {
         quantidadeTotal: novaQuantidade,
@@ -253,7 +255,7 @@ export async function criarEntrada(
 
     // 4. Atualiza total investido dos sócios
     for (const pagamento of input.pagamentos) {
-      await tx.socio.update({
+      await tx.socios.update({
         where: { id: pagamento.socioId },
         data: {
           totalInvestido: {
@@ -278,15 +280,15 @@ export async function criarEntrada(
  * Exclui uma entrada (apenas se for a mais recente e não houver vendas)
  */
 export async function excluirEntrada(id: string): Promise<void> {
-  const entrada = await prisma.entrada.findUnique({
+  const entrada = await prisma.entradas.findUnique({
     where: { id },
     include: {
-      estoque: {
+      estoques: {
         include: {
-          vendaItens: true,
+          venda_itens: true,
         },
       },
-      pagamentos: true,
+      pagamentos_entrada: true,
     },
   })
 
@@ -295,15 +297,15 @@ export async function excluirEntrada(id: string): Promise<void> {
   }
 
   // Verifica se há vendas que usaram este estoque
-  if (entrada.estoque.vendaItens.length > 0) {
+  if (entrada.estoques.venda_itens.length > 0) {
     throw new Error(
       'Não é possível excluir entrada com vendas associadas'
     )
   }
 
   // Verifica se é a entrada mais recente
-  const entradaMaisRecente = await prisma.entrada.findFirst({
-    where: { estoqueId: entrada.estoqueId },
+  const entradaMaisRecente = await prisma.entradas.findFirst({
+    where: { estoqueId: entrada.estoques.id },
     orderBy: { dataEntrada: 'desc' },
   })
 
@@ -315,15 +317,15 @@ export async function excluirEntrada(id: string): Promise<void> {
 
   await prisma.$transaction([
     // Remove pagamentos
-    prisma.pagamentoEntrada.deleteMany({
+    prisma.pagamentos_entrada.deleteMany({
       where: { entradaId: id },
     }),
     // Remove entrada
-    prisma.entrada.delete({
+    prisma.entradas.delete({
       where: { id },
     }),
     // Atualiza estoque (reverte a entrada)
-    prisma.estoque.update({
+    prisma.estoques.update({
       where: { id: entrada.estoqueId },
       data: {
         quantidadeTotal: {
@@ -338,8 +340,8 @@ export async function excluirEntrada(id: string): Promise<void> {
       },
     }),
     // Atualiza investimentos dos sócios
-    ...entrada.pagamentos.map((p) =>
-      prisma.socio.update({
+    ...entrada.pagamentos_entrada.map((p) =>
+      prisma.socios.update({
         where: { id: p.socioId },
         data: {
           totalInvestido: {
@@ -363,7 +365,7 @@ export async function obterResumoEntradas(
   totalQuantidade: number
   porTipo: Record<TipoEntrada, number>
 }> {
-  const entradas = await prisma.entrada.findMany({
+  const entradas = await prisma.entradas.findMany({
     where: {
       dataEntrada: {
         gte: dataInicio,

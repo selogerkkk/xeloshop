@@ -7,7 +7,7 @@ async function main() {
 
   // Criar sócios iniciais: Nato, Ruan e Empresa
   const socios = await Promise.all([
-    prisma.socio.upsert({
+    prisma.socios.upsert({
       where: { id: 'nato-id' },
       update: {},
       create: {
@@ -23,7 +23,7 @@ async function main() {
         totalSacado: 0,
       },
     }),
-    prisma.socio.upsert({
+    prisma.socios.upsert({
       where: { id: 'ruan-id' },
       update: {},
       create: {
@@ -39,7 +39,7 @@ async function main() {
         totalSacado: 0,
       },
     }),
-    prisma.socio.upsert({
+    prisma.socios.upsert({
       where: { id: 'empresa-id' },
       update: {},
       create: {

@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const todos = searchParams.get('todos') === 'true'
 
-    const produtos = await prisma.produto.findMany({
+    const produtos = await prisma.produtos.findMany({
       include: {
         estoques: {
           select: {
@@ -45,11 +45,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 })
     }
 
-    const produto = await prisma.produto.create({
+    const produto = await prisma.produtos.create({
       data: {
+        id: crypto.randomUUID(),
         nome,
         linkProduto: linkProduto || null,
         sku: sku || null,
+        criadoEm: new Date(),
+        atualizadoEm: new Date()
       }
     })
 

@@ -29,12 +29,12 @@ export async function GET(request: Request) {
       obterResumoSaques(),
       obterResumoDistribuicoes(),
       obterResumoDividas(),
-      prisma.estoque.count({ where: { ativo: true } }),
-      prisma.socio.count({ where: { ativo: true } }),
+      prisma.estoques.count({ where: { ativo: true } }),
+      prisma.socios.count({ where: { ativo: true } }),
     ])
 
     // Resumo por sócio
-    const socios = await prisma.socio.findMany({
+    const socios = await prisma.socios.findMany({
       where: { ativo: true },
       select: {
         id: true,
@@ -60,15 +60,15 @@ export async function GET(request: Request) {
     }))
 
     // Resumo de estoques
-    const estoques = await prisma.estoque.findMany({
+    const estoques = await prisma.estoques.findMany({
       where: { ativo: true },
       include: {
-        produto: {
+        produtos: {
           select: { nome: true },
         },
         cotas: {
           include: {
-            socio: {
+            socios: {
               select: { nome: true, cor: true },
             },
           },
@@ -76,18 +76,18 @@ export async function GET(request: Request) {
       },
     })
 
-    const resumoEstoques = estoques.map((e) => ({
+    const resumoEstoques = estoques.map((e: any) => ({
       id: e.id,
       nome: e.nome,
       tipo: e.tipo,
-      produtoNome: e.produto.nome,
+      produtoNome: e.produtos.nome,
       quantidadeDisponivel: e.quantidadeDisponivel,
       quantidadeTotal: e.quantidadeTotal,
       custoMedio: Number(e.custoMedio),
       valorTotalInvestido: Number(e.valorTotalInvestido),
-      cotas: e.cotas.map((c) => ({
-        socioNome: c.socio.nome,
-        socioCor: c.socio.cor,
+      cotas: e.cotas.map((c: any) => ({
+        socioNome: c.socios.nome,
+        socioCor: c.socios.cor,
         percentual: Number(c.percentual),
         valorInvestido: Number(c.valorInvestido),
       })),

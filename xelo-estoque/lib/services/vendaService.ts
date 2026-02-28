@@ -26,7 +26,7 @@ export interface VendaDetalhada {
   dataVenda: Date
   dataCancelamento?: Date
   motivoCancelamento?: string
-  itens: {
+  venda_itens: {
     id: string
     estoqueId: string
     estoqueNome: string
@@ -36,7 +36,7 @@ export interface VendaDetalhada {
     custoUnitario: number
     lucroTotal: number
   }[]
-  distribuicoes: {
+  distribuicoes_lucro: {
     id: string
     socioId: string
     socioNome: string
@@ -58,7 +58,7 @@ export async function listarVendas(
     dataFim?: Date
   }
 ): Promise<VendaDetalhada[]> {
-  const vendas = await prisma.venda.findMany({
+  const vendas = await prisma.vendas.findMany({
     where: {
       status: filtros?.status,
       canal: filtros?.canal,
@@ -68,11 +68,11 @@ export async function listarVendas(
       },
     },
     include: {
-      itens: {
+      venda_itens: {
         include: {
-          estoque: {
+          estoques: {
             include: {
-              produto: {
+              produtos: {
                 select: {
                   id: true,
                   nome: true,
@@ -82,9 +82,9 @@ export async function listarVendas(
           },
         },
       },
-      distribuicoes: {
+      distribuicoes_lucro: {
         include: {
-          socio: {
+          socios: {
             select: {
               id: true,
               nome: true,
@@ -107,21 +107,21 @@ export async function listarVendas(
     dataVenda: v.dataVenda,
     dataCancelamento: v.dataCancelamento || undefined,
     motivoCancelamento: v.motivoCancelamento || undefined,
-    itens: v.itens.map((i) => ({
+    venda_itens: v.venda_itens.map((i) => ({
       id: i.id,
       estoqueId: i.estoqueId,
-      estoqueNome: i.estoque.nome,
-      produtoNome: i.estoque.produto.nome,
+      estoqueNome: i.estoques.nome,
+      produtoNome: i.estoques.produtos.nome,
       quantidade: i.quantidade,
       precoUnitario: Number(i.precoUnitario),
       custoUnitario: Number(i.custoUnitario),
       lucroTotal: Number(i.lucroTotal),
     })),
-    distribuicoes: v.distribuicoes.map((d) => ({
+    distribuicoes_lucro: v.distribuicoes_lucro.map((d) => ({
       id: d.id,
       socioId: d.socioId,
-      socioNome: d.socio.nome,
-      socioCor: d.socio.cor,
+      socioNome: d.socios.nome,
+      socioCor: d.socios.cor,
       percentualAplicado: Number(d.percentualAplicado),
       valor: Number(d.valor),
       status: d.status,
@@ -135,14 +135,14 @@ export async function listarVendas(
 export async function buscarVendaPorId(
   id: string
 ): Promise<VendaDetalhada | null> {
-  const venda = await prisma.venda.findUnique({
+  const venda = await prisma.vendas.findUnique({
     where: { id },
     include: {
-      itens: {
+      venda_itens: {
         include: {
-          estoque: {
+          estoques: {
             include: {
-              produto: {
+              produtos: {
                 select: {
                   id: true,
                   nome: true,
@@ -152,9 +152,9 @@ export async function buscarVendaPorId(
           },
         },
       },
-      distribuicoes: {
+      distribuicoes_lucro: {
         include: {
-          socio: {
+          socios: {
             select: {
               id: true,
               nome: true,
@@ -178,21 +178,21 @@ export async function buscarVendaPorId(
     dataVenda: venda.dataVenda,
     dataCancelamento: venda.dataCancelamento || undefined,
     motivoCancelamento: venda.motivoCancelamento || undefined,
-    itens: venda.itens.map((i) => ({
+    venda_itens: venda.venda_itens.map((i) => ({
       id: i.id,
       estoqueId: i.estoqueId,
-      estoqueNome: i.estoque.nome,
-      produtoNome: i.estoque.produto.nome,
+      estoqueNome: i.estoques.nome,
+      produtoNome: i.estoques.produtos.nome,
       quantidade: i.quantidade,
       precoUnitario: Number(i.precoUnitario),
       custoUnitario: Number(i.custoUnitario),
       lucroTotal: Number(i.lucroTotal),
     })),
-    distribuicoes: venda.distribuicoes.map((d) => ({
+    distribuicoes_lucro: venda.distribuicoes_lucro.map((d) => ({
       id: d.id,
       socioId: d.socioId,
-      socioNome: d.socio.nome,
-      socioCor: d.socio.cor,
+      socioNome: d.socios.nome,
+      socioCor: d.socios.cor,
       percentualAplicado: Number(d.percentualAplicado),
       valor: Number(d.valor),
       status: d.status,
@@ -235,13 +235,13 @@ export async function previewDistribuicao(
   let lucroTotal = 0
 
   for (const item of itens) {
-    const estoque = await prisma.estoque.findUnique({
+    const estoque = await prisma.estoques.findUnique({
       where: { id: item.estoqueId },
       include: {
-        produto: true,
+        produtos: true,
         cotas: {
           include: {
-            socio: true,
+            socios: true,
           },
         },
       },
@@ -290,7 +290,7 @@ export async function previewDistribuicao(
   for (const item of resultadoItens) {
     for (const dist of item.distribuicao) {
       if (!distribuicaoPorSocio[dist.socioId]) {
-        const socio = await prisma.socio.findUnique({
+        const socio = await prisma.socios.findUnique({
           where: { id: dist.socioId },
           select: { nome: true },
         })
@@ -345,8 +345,9 @@ export async function criarVenda(
     let lucroTotal = 0
 
     // Cria a venda
-    const venda = await tx.venda.create({
+    const venda = await tx.vendas.create({
       data: {
+        id: crypto.randomUUID(),
         canal: input.canal,
         receitaTotal: 0,
         custoTotal: 0,
@@ -358,7 +359,7 @@ export async function criarVenda(
 
     // Processa cada item
     for (const item of input.itens) {
-      const estoque = await tx.estoque.findUnique({
+      const estoque = await tx.estoques.findUnique({
         where: { id: item.estoqueId },
         include: { cotas: true },
       })
@@ -373,8 +374,9 @@ export async function criarVenda(
       const itemLucroTotal = itemReceitaTotal - itemCustoTotal
 
       // Cria o item da venda
-      await tx.vendaItem.create({
+      await tx.venda_itens.create({
         data: {
+          id: crypto.randomUUID(),
           vendaId: venda.id,
           estoqueId: item.estoqueId,
           quantidade: item.quantidade,
@@ -385,7 +387,7 @@ export async function criarVenda(
       })
 
       // Atualiza estoque
-      await tx.estoque.update({
+      await tx.estoques.update({
         where: { id: item.estoqueId },
         data: {
           quantidadeTotal: {
@@ -403,8 +405,9 @@ export async function criarVenda(
           (itemLucroTotal * Number(cota.percentual)) / 100
         )
 
-        await tx.distribuicaoLucro.create({
+        await tx.distribuicoes_lucro.create({
           data: {
+            id: crypto.randomUUID(),
             vendaId: venda.id,
             socioId: cota.socioId,
             percentualAplicado: cota.percentual,
@@ -414,7 +417,7 @@ export async function criarVenda(
         })
 
         // Atualiza saldo pendente do sócio
-        await tx.socio.update({
+        await tx.socios.update({
           where: { id: cota.socioId },
           data: {
             saldoPendente: {
@@ -430,7 +433,7 @@ export async function criarVenda(
     }
 
     // Atualiza totais da venda
-    await tx.venda.update({
+    await tx.vendas.update({
       where: { id: venda.id },
       data: {
         receitaTotal,
@@ -451,11 +454,11 @@ export async function cancelarVenda(
   vendaId: string,
   motivo: string
 ): Promise<void> {
-  const venda = await prisma.venda.findUnique({
+  const venda = await prisma.vendas.findUnique({
     where: { id: vendaId },
     include: {
-      itens: true,
-      distribuicoes: true,
+      venda_itens: true,
+      distribuicoes_lucro: true,
     },
   })
 
@@ -469,8 +472,8 @@ export async function cancelarVenda(
 
   await prisma.$transaction(async (tx) => {
     // 1. Restaura quantidade dos estoques
-    for (const item of venda.itens) {
-      await tx.estoque.update({
+    for (const item of venda.venda_itens) {
+      await tx.estoques.update({
         where: { id: item.estoqueId },
         data: {
           quantidadeTotal: {
@@ -484,16 +487,17 @@ export async function cancelarVenda(
     }
 
     // 2. Marca distribuições como RETIDO e cria dívidas
-    for (const dist of venda.distribuicoes) {
+    for (const dist of venda.distribuicoes_lucro) {
       // Marca como retido
-      await tx.distribuicaoLucro.update({
+      await tx.distribuicoes_lucro.update({
         where: { id: dist.id },
         data: { status: 'RETIDO' },
       })
 
       // Cria dívida de ajuste
-      await tx.dividaAjuste.create({
+      await tx.dividas_ajuste.create({
         data: {
+          id: crypto.randomUUID(),
           socioId: dist.socioId,
           valorOriginal: dist.valor,
           valorPendente: dist.valor,
@@ -504,7 +508,7 @@ export async function cancelarVenda(
       })
 
       // Reverte saldo pendente
-      await tx.socio.update({
+      await tx.socios.update({
         where: { id: dist.socioId },
         data: {
           saldoPendente: {
@@ -515,7 +519,7 @@ export async function cancelarVenda(
     }
 
     // 3. Marca venda como cancelada
-    await tx.venda.update({
+    await tx.vendas.update({
       where: { id: vendaId },
       data: {
         status: 'CANCELADA',
@@ -539,7 +543,7 @@ export async function obterResumoVendas(
   lucroTotal: number
   porCanal: Record<string, { receita: number; lucro: number }>
 }> {
-  const vendas = await prisma.venda.findMany({
+  const vendas = await prisma.vendas.findMany({
     where: {
       status: 'CONCLUIDA',
       dataVenda: {

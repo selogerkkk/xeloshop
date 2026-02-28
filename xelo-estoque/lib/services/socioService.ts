@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { TipoSocio, Socio } from '@prisma/client'
+import type { TipoSocio, socios } from '@prisma/client'
 
 export interface CreateSocioInput {
   nome: string
@@ -14,7 +14,7 @@ export interface UpdateSocioInput {
 }
 
 export interface SaldoDetalhado {
-  socio: Socio
+  socio: socios
   cotasAtivas: {
     estoqueNome: string
     produtoNome: string
@@ -30,8 +30,8 @@ export interface SaldoDetalhado {
 /**
  * Lista todos os sócios
  */
-export async function listarSocios(ativo?: boolean): Promise<Socio[]> {
-  return prisma.socio.findMany({
+export async function listarSocios(ativo?: boolean): Promise<socios[]> {
+  return prisma.socios.findMany({
     where: ativo !== undefined ? { ativo } : undefined,
     orderBy: { nome: 'asc' },
   })
@@ -40,8 +40,8 @@ export async function listarSocios(ativo?: boolean): Promise<Socio[]> {
 /**
  * Busca um sócio por ID
  */
-export async function buscarSocioPorId(id: string): Promise<Socio | null> {
-  return prisma.socio.findUnique({
+export async function buscarSocioPorId(id: string): Promise<socios | null> {
+  return prisma.socios.findUnique({
     where: { id },
   })
 }
@@ -49,9 +49,10 @@ export async function buscarSocioPorId(id: string): Promise<Socio | null> {
 /**
  * Cria um novo sócio
  */
-export async function criarSocio(input: CreateSocioInput): Promise<Socio> {
-  return prisma.socio.create({
+export async function criarSocio(input: CreateSocioInput): Promise<socios> {
+  return prisma.socios.create({
     data: {
+      id: crypto.randomUUID(),
       nome: input.nome,
       tipo: input.tipo,
       cor: input.cor,
@@ -60,6 +61,7 @@ export async function criarSocio(input: CreateSocioInput): Promise<Socio> {
       totalInvestido: 0,
       totalRecebido: 0,
       totalSacado: 0,
+      atualizadoEm: new Date(),
     },
   })
 }
@@ -70,8 +72,8 @@ export async function criarSocio(input: CreateSocioInput): Promise<Socio> {
 export async function atualizarSocio(
   id: string,
   input: UpdateSocioInput
-): Promise<Socio> {
-  return prisma.socio.update({
+): Promise<socios> {
+  return prisma.socios.update({
     where: { id },
     data: input,
   })
@@ -81,14 +83,13 @@ export async function atualizarSocio(
  * Exclui um sócio (apenas se não tiver movimentações)
  */
 export async function excluirSocio(id: string): Promise<void> {
-  const socio = await prisma.socio.findUnique({
+  const socio = await prisma.socios.findUnique({
     where: { id },
     include: {
       cotas: true,
-      pagamentos: true,
-      distribuicoes: true,
+      distribuicoes_lucro: true,
       saques: true,
-      dividas: true,
+      dividas_ajuste: true,
     },
   })
 
@@ -98,15 +99,14 @@ export async function excluirSocio(id: string): Promise<void> {
 
   if (
     socio.cotas.length > 0 ||
-    socio.pagamentos.length > 0 ||
-    socio.distribuicoes.length > 0 ||
+    socio.distribuicoes_lucro.length > 0 ||
     socio.saques.length > 0 ||
-    socio.dividas.length > 0
+    socio.dividas_ajuste.length > 0
   ) {
     throw new Error('Não é possível excluir sócio com movimentações')
   }
 
-  await prisma.socio.delete({
+  await prisma.socios.delete({
     where: { id },
   })
 }
@@ -117,23 +117,23 @@ export async function excluirSocio(id: string): Promise<void> {
 export async function obterSaldoDetalhado(
   socioId: string
 ): Promise<SaldoDetalhado> {
-  const socio = await prisma.socio.findUnique({
+  const socio = await prisma.socios.findUnique({
     where: { id: socioId },
     include: {
       cotas: {
         where: {
-          estoque: { ativo: true },
+          estoques: { ativo: true },
         },
         include: {
-          estoque: {
+          estoques: {
             include: {
-              produto: true,
+              produtos: true,
             },
           },
         },
       },
-      distribuicoes: true,
-      dividas: {
+      distribuicoes_lucro: true,
+      dividas_ajuste: {
         where: { status: 'ATIVA' },
       },
     },
@@ -143,28 +143,28 @@ export async function obterSaldoDetalhado(
     throw new Error('Sócio não encontrado')
   }
 
-  const distribuicoesPendentes = socio.distribuicoes
+  const distribuicoesPendentes = socio.distribuicoes_lucro
     .filter((d) => d.status === 'PENDENTE')
     .reduce((sum, d) => sum + Number(d.valor), 0)
 
-  const distribuicoesLiberadas = socio.distribuicoes
+  const distribuicoesLiberadas = socio.distribuicoes_lucro
     .filter((d) => d.status === 'LIBERADO')
     .reduce((sum, d) => sum + Number(d.valor), 0)
 
-  const distribuicoesRetidas = socio.distribuicoes
+  const distribuicoesRetidas = socio.distribuicoes_lucro
     .filter((d) => d.status === 'RETIDO')
     .reduce((sum, d) => sum + Number(d.valor), 0)
 
-  const dividasAtivas = socio.dividas.reduce(
+  const dividasAtivas = socio.dividas_ajuste.reduce(
     (sum, d) => sum + Number(d.valorPendente),
     0
   )
 
   return {
     socio,
-    cotasAtivas: socio.cotas.map((c) => ({
-      estoqueNome: c.estoque.nome,
-      produtoNome: c.estoque.produto.nome,
+    cotasAtivas: socio.cotas.map((c: typeof socio.cotas[0]) => ({
+      estoqueNome: c.estoques.nome,
+      produtoNome: c.estoques.produtos.nome,
       percentual: Number(c.percentual),
       valorInvestido: Number(c.valorInvestido),
     })),
@@ -182,7 +182,7 @@ export async function atualizarSaldoAposDistribuicao(
   socioId: string,
   valorDistribuicao: number
 ): Promise<void> {
-  await prisma.socio.update({
+  await prisma.socios.update({
     where: { id: socioId },
     data: {
       saldoPendente: {
@@ -200,7 +200,7 @@ export async function liberarSaldoPendente(
   valor: number
 ): Promise<void> {
   await prisma.$transaction([
-    prisma.socio.update({
+    prisma.socios.update({
       where: { id: socioId },
       data: {
         saldoPendente: {
@@ -224,7 +224,7 @@ export async function processarSaque(
   socioId: string,
   valor: number
 ): Promise<void> {
-  const socio = await prisma.socio.findUnique({
+  const socio = await prisma.socios.findUnique({
     where: { id: socioId },
   })
 
@@ -236,7 +236,7 @@ export async function processarSaque(
     throw new Error('Saldo insuficiente')
   }
 
-  await prisma.socio.update({
+  await prisma.socios.update({
     where: { id: socioId },
     data: {
       saldoDisponivel: {
@@ -256,7 +256,7 @@ export async function adicionarInvestimento(
   socioId: string,
   valor: number
 ): Promise<void> {
-  await prisma.socio.update({
+  await prisma.socios.update({
     where: { id: socioId },
     data: {
       totalInvestido: {

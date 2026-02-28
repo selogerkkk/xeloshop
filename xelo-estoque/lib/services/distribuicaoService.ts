@@ -24,14 +24,14 @@ export async function listarDistribuicoes(
     vendaId?: string
   }
 ): Promise<DistribuicaoDetalhada[]> {
-  const distribuicoes = await prisma.distribuicaoLucro.findMany({
+  const distribuicoes = await prisma.distribuicoes_lucro.findMany({
     where: {
       socioId: filtros?.socioId,
       status: filtros?.status,
       vendaId: filtros?.vendaId,
     },
     include: {
-      socio: {
+      socios: {
         select: {
           id: true,
           nome: true,
@@ -46,8 +46,8 @@ export async function listarDistribuicoes(
     id: d.id,
     vendaId: d.vendaId,
     socioId: d.socioId,
-    socioNome: d.socio.nome,
-    socioCor: d.socio.cor,
+    socioNome: d.socios.nome,
+    socioCor: d.socios.cor,
     percentualAplicado: Number(d.percentualAplicado),
     valor: Number(d.valor),
     status: d.status,
@@ -60,7 +60,7 @@ export async function listarDistribuicoes(
  * Transfere o valor do saldoPendente para saldoDisponivel
  */
 export async function liberarDistribuicao(id: string): Promise<void> {
-  const distribuicao = await prisma.distribuicaoLucro.findUnique({
+  const distribuicao = await prisma.distribuicoes_lucro.findUnique({
     where: { id },
   })
 
@@ -74,13 +74,13 @@ export async function liberarDistribuicao(id: string): Promise<void> {
 
   await prisma.$transaction(async (tx) => {
     // Atualiza a distribuição
-    await tx.distribuicaoLucro.update({
+    await tx.distribuicoes_lucro.update({
       where: { id },
       data: { status: 'LIBERADO' },
     })
 
     // Atualiza saldos do sócio
-    await tx.socio.update({
+    await tx.socios.update({
       where: { id: distribuicao.socioId },
       data: {
         saldoPendente: {
@@ -136,9 +136,9 @@ export async function obterResumoDistribuicoes(): Promise<{
     liberadas,
     retidas,
   ] = await Promise.all([
-    prisma.distribuicaoLucro.findMany({ where: { status: 'PENDENTE' } }),
-    prisma.distribuicaoLucro.findMany({ where: { status: 'LIBERADO' } }),
-    prisma.distribuicaoLucro.findMany({ where: { status: 'RETIDO' } }),
+    prisma.distribuicoes_lucro.findMany({ where: { status: 'PENDENTE' } }),
+    prisma.distribuicoes_lucro.findMany({ where: { status: 'LIBERADO' } }),
+    prisma.distribuicoes_lucro.findMany({ where: { status: 'RETIDO' } }),
   ])
 
   return {
@@ -170,7 +170,7 @@ export async function reterDistribuicao(
   id: string,
   motivo?: string
 ): Promise<void> {
-  const distribuicao = await prisma.distribuicaoLucro.findUnique({
+  const distribuicao = await prisma.distribuicoes_lucro.findUnique({
     where: { id },
   })
 
@@ -182,7 +182,7 @@ export async function reterDistribuicao(
     throw new Error('Apenas distribuições pendentes podem ser retidas')
   }
 
-  await prisma.distribuicaoLucro.update({
+  await prisma.distribuicoes_lucro.update({
     where: { id },
     data: { status: 'RETIDO' },
   })
