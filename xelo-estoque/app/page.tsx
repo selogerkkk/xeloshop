@@ -1,71 +1,54 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ProdutoForm } from '@/components/ProdutoForm'
+import { ViewToggle } from '@/components/dashboard/ViewToggle'
+import { SocioDashboard } from '@/components/dashboard/SocioDashboard'
+import { EmpresaDashboard } from '@/components/dashboard/EmpresaDashboard'
 import { VendaForm } from '@/components/VendaForm'
-import { ProdutoList } from '@/components/ProdutoList'
-import { VendaList } from '@/components/VendaList'
-import { AccountSummary } from '@/components/AccountSummary'
-import { PositionPanel } from '@/components/PositionPanel'
-import { AnalyticsPanel } from '@/components/AnalyticsPanel'
-import { PortfolioChart } from '@/components/PortfolioChart'
+import { EntradaForm } from '@/components/entradas/EntradaForm'
 
-type Produto = {
+interface Socio {
   id: string
   nome: string
-  linkProduto: string | null
-  custo: string
-  precoVenda: string
-  quantidade: number
-  ativo: boolean
-  criadoEm: string
-  _count?: {
-    vendas: number
-  }
+  cor: string
 }
 
-type Venda = {
+interface Produto {
   id: string
-  produto: {
-    id: string
-    nome: string
-    custo: string
-  }
-  quantidade: number
-  canal: string
-  precoReal: string
-  vendidoEm: string
+  nome: string
 }
+
+type DashboardView = 'socio' | 'empresa'
+type ActiveTab = 'dashboard' | 'nova-venda' | 'entrada-estoque'
 
 export default function Home() {
-  const [activeView, setActiveView] = useState<'dashboard' | 'trade' | 'history'>('dashboard')
+  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard')
+  const [dashboardView, setDashboardView] = useState<DashboardView>('empresa')
+  const [selectedSocioId, setSelectedSocioId] = useState<string>('')
+  const [socios, setSocios] = useState<Socio[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
-  const [vendas, setVendas] = useState<Venda[]>([])
-  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'disponivel' | 'vendido'>('todos')
-  const [mostrarInativos, setMostrarInativos] = useState(false)
-  const [modalAberto, setModalAberto] = useState(false)
   const [loading, setLoading] = useState(true)
-
-  const [periodoFiltro, setPeriodoFiltro] = useState<'mes' | '2meses' | '6meses' | '12meses' | 'personalizado'>('mes')
-  const [dataInicio, setDataInicio] = useState('')
-  const [dataFim, setDataFim] = useState('')
-  const [erroData, setErroData] = useState('')
 
   const fetchData = async () => {
     try {
-      const [prodRes, vendRes] = await Promise.all([
-        fetch(`/api/produtos${mostrarInativos ? '?todos=true' : ''}`),
-        fetch('/api/vendas')
+      const [sociosRes, produtosRes] = await Promise.all([
+        fetch('/api/socios'),
+        fetch('/api/produtos?ativo=true'),
       ])
-      const prodData = await prodRes.json()
-      const vendData = await vendRes.json()
 
-      setProdutos(Array.isArray(prodData) ? prodData : [])
-      setVendas(Array.isArray(vendData) ? vendData : [])
+      const sociosData = await sociosRes.json()
+      const produtosData = await produtosRes.json()
+
+      setSocios(Array.isArray(sociosData) ? sociosData : [])
+      setProdutos(Array.isArray(produtosData) ? produtosData : [])
+
+      // Seleciona primeiro sócio não-empresa por padrão
+      if (sociosData.length > 0 && !selectedSocioId) {
+        const primeiroSocio = sociosData.find((s: Socio) => s.nome !== 'Empresa') || sociosData[0]
+        setSelectedSocioId(primeiroSocio.id)
+      }
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
-      setProdutos([])
-      setVendas([])
     } finally {
       setLoading(false)
     }
@@ -73,102 +56,24 @@ export default function Home() {
 
   useEffect(() => {
     fetchData()
-  }, [mostrarInativos])
+  }, [])
 
-  const produtosFiltrados = produtos.filter(p => {
-    if (filtroStatus === 'disponivel') return p.quantidade > 0
-    if (filtroStatus === 'vendido') return p.quantidade === 0
-    return true
-  })
-
-  const getDataLimite = () => {
-    const hoje = new Date()
-    const dataLimite = new Date(hoje)
-
-    switch (periodoFiltro) {
-      case 'mes':
-        dataLimite.setMonth(hoje.getMonth() - 1)
-        break
-      case '2meses':
-        dataLimite.setMonth(hoje.getMonth() - 2)
-        break
-      case '6meses':
-        dataLimite.setMonth(hoje.getMonth() - 6)
-        break
-      case '12meses':
-        dataLimite.setFullYear(hoje.getFullYear() - 1)
-        break
-      case 'personalizado':
-        return dataInicio ? new Date(dataInicio) : null
-      default:
-        dataLimite.setMonth(hoje.getMonth() - 1)
-    }
-
-    return dataLimite
+  const handleVendaSuccess = () => {
+    fetchData()
+    setActiveTab('dashboard')
   }
 
-  const dataLimite = getDataLimite()
-  const dataFimFiltro = periodoFiltro === 'personalizado' && dataFim
-    ? new Date(dataFim)
-    : new Date()
-
-  useEffect(() => {
-    if (periodoFiltro === 'personalizado' && dataInicio && dataFim) {
-      if (new Date(dataFim) < new Date(dataInicio)) {
-        setErroData('Data final não pode ser anterior à data inicial')
-      } else {
-        setErroData('')
-      }
-    } else {
-      setErroData('')
-    }
-  }, [dataInicio, dataFim, periodoFiltro])
-
-  const vendasFiltradas = vendas.filter(v => {
-    const dataVenda = new Date(v.vendidoEm)
-    if (periodoFiltro === 'personalizado') {
-      if (dataLimite && dataVenda < dataLimite) return false
-      if (dataFim && dataVenda > new Date(dataFim + 'T23:59:59')) return false
-      return true
-    }
-    return dataLimite ? dataVenda >= dataLimite : true
-  })
-
-  // Financial calculations
-  const totalVendido = vendasFiltradas.reduce((acc, v) =>
-    acc + (parseFloat(v.precoReal) * v.quantidade), 0
-  )
-
-  const lucroReal = vendasFiltradas.reduce((acc, v) => {
-    const produto = produtos.find(p => p.id === v.produto.id)
-    if (!produto) return acc
-    return acc + ((parseFloat(v.precoReal) - parseFloat(produto.custo)) * v.quantidade)
-  }, 0)
-
-  const valorInvestido = produtos.reduce((acc, p) =>
-    acc + (parseFloat(p.custo) * p.quantidade), 0
-  )
-
-  const potencialVenda = produtos.reduce((acc, p) =>
-    acc + (parseFloat(p.precoVenda) * p.quantidade), 0
-  )
-
-  const lucroPotencial = produtos.reduce((acc, p) => {
-    const lucroUnitario = parseFloat(p.precoVenda) - parseFloat(p.custo)
-    return acc + (lucroUnitario * p.quantidade)
-  }, 0)
-
-  const totalEquity = valorInvestido + lucroPotencial
-  const totalCash = totalVendido
-  const buyingPower = potencialVenda
-  const totalPnL = lucroReal + lucroPotencial
+  const handleEntradaSuccess = () => {
+    fetchData()
+    setActiveTab('dashboard')
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-emerald-400 font-mono">LOADING DATA...</p>
+          <p className="text-emerald-400 font-mono">CARREGANDO SISTEMA...</p>
         </div>
       </div>
     )
@@ -176,116 +81,105 @@ export default function Home() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6">
-      {/* Navigation Tabs */}
+      {/* Main Navigation */}
       <div className="glass-card">
-        <div className="flex gap-2 overflow-x-auto">
-          <button
-            onClick={() => setActiveView('dashboard')}
-            className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all ${activeView === 'dashboard'
-              ? 'bg-emerald-500/20 text-emerald-400 border-b-2 border-emerald-500'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between p-2">
+          <div className="flex gap-2 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all rounded ${
+                activeTab === 'dashboard'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
-          >
-            📊 Dashboard
-          </button>
-          <button
-            onClick={() => setActiveView('trade')}
-            className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all ${activeView === 'trade'
-              ? 'bg-emerald-500/20 text-emerald-400 border-b-2 border-emerald-500'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab('nova-venda')}
+              className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all rounded ${
+                activeTab === 'nova-venda'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
-          >
-            💹 Sale
-          </button>
-          <button
-            onClick={() => setActiveView('history')}
-            className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all ${activeView === 'history'
-              ? 'bg-emerald-500/20 text-emerald-400 border-b-2 border-emerald-500'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
+            >
+              Nova Venda
+            </button>
+            <button
+              onClick={() => setActiveTab('entrada-estoque')}
+              className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all rounded ${
+                activeTab === 'entrada-estoque'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
-          >
-            📜 History
-          </button>
+            >
+              Entrada de Estoque
+            </button>
+          </div>
+
+          {activeTab === 'dashboard' && (
+            <ViewToggle
+              view={dashboardView}
+              onChange={setDashboardView}
+            />
+          )}
         </div>
       </div>
 
-      {/* Dashboard View - 3 Panel Layout */}
-      {activeView === 'dashboard' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Panel - Account Summary */}
-          <div className="lg:col-span-3 space-y-4">
-            <AccountSummary
-              equity={totalEquity}
-              cash={totalCash}
-              buyingPower={buyingPower}
-              totalPnL={totalPnL}
-              produtos={produtos}
-              periodoFiltro={periodoFiltro}
-              setPeriodoFiltro={setPeriodoFiltro}
-              dataInicio={dataInicio}
-              setDataInicio={setDataInicio}
-              dataFim={dataFim}
-              setDataFim={setDataFim}
-              erroData={erroData}
-            />
-          </div>
+      {/* Dashboard Tab */}
+      {activeTab === 'dashboard' && (
+        <div className="space-y-6">
+          {dashboardView === 'empresa' ? (
+            <EmpresaDashboard />
+          ) : (
+            <div className="space-y-4">
+              {/* Sócio Selector */}
+              <div className="glass-card p-4">
+                <label className="text-xs uppercase tracking-wider text-gray-400 block mb-2">
+                  Visualizando como:
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {socios.map((socio) => (
+                    <button
+                      key={socio.id}
+                      onClick={() => setSelectedSocioId(socio.id)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded transition-all ${
+                        selectedSocioId === socio.id
+                          ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/50'
+                          : 'bg-black/30 text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: socio.cor }}
+                      />
+                      <span className="text-sm font-medium">{socio.nome}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Center Panel - Positions */}
-          <div className="lg:col-span-6 space-y-4">
-            <PositionPanel
-              produtos={produtosFiltrados}
-              filtroStatus={filtroStatus}
-              setFiltroStatus={setFiltroStatus}
-              mostrarInativos={mostrarInativos}
-              setMostrarInativos={setMostrarInativos}
-              onAddProduct={() => setModalAberto(true)}
-              onUpdate={fetchData}
-            />
-          </div>
-
-          {/* Right Panel - Analytics */}
-          <div className="lg:col-span-3 space-y-4">
-            <AnalyticsPanel
-              vendas={vendasFiltradas}
-              produtos={produtos}
-              totalVendido={totalVendido}
-              lucroReal={lucroReal}
-              valorInvestido={valorInvestido}
-              potencialVenda={potencialVenda}
-              lucroPotencial={lucroPotencial}
-            />
-          </div>
+              {selectedSocioId && <SocioDashboard socioId={selectedSocioId} />}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Trade View */}
-      {activeView === 'trade' && (
-        <div className="glass-card">
+      {/* Nova Venda Tab */}
+      {activeTab === 'nova-venda' && (
+        <div className="max-w-6xl mx-auto">
           <VendaForm
-            produtos={produtos.filter(p => p.quantidade > 0 && (p.ativo || p.ativo === null))}
-            onSuccess={fetchData}
+            produtos={produtos}
+            onSuccess={handleVendaSuccess}
           />
         </div>
       )}
 
-      {/* History View */}
-      {activeView === 'history' && (
-        <div className="glass-card">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-emerald-400 mb-2">Transaction History</h2>
-            <p className="text-sm text-gray-500">
-              Showing {vendasFiltradas.length} transactions for selected period
-            </p>
-          </div>
-          <VendaList vendas={vendasFiltradas} onUpdate={fetchData} />
-        </div>
-      )}
-
-      {/* Modal */}
-      {modalAberto && (
-        <ProdutoForm
-          onSuccess={fetchData}
-          onClose={() => setModalAberto(false)}
+      {/* Entrada de Estoque Tab */}
+      {activeTab === 'entrada-estoque' && (
+        <EntradaForm
+          onSuccess={handleEntradaSuccess}
+          onClose={() => setActiveTab('dashboard')}
         />
       )}
     </div>
