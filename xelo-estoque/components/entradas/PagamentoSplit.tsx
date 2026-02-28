@@ -50,6 +50,19 @@ export function PagamentoSplit({
     }
   }, [modo, cotasAtuais, custoTotal, onChange])
 
+  // Initialize payments based on socios when no quotas exist (new stock)
+  useEffect(() => {
+    if (modo === 'simples' && (!cotasAtuais || cotasAtuais.length === 0) && socios.length > 0 && value.length === 0) {
+      const percentualIgual = 100 / socios.length
+      const pagamentos = socios.map((s) => ({
+        socioId: s.id,
+        percentual: percentualIgual,
+        valor: (custoTotal * percentualIgual) / 100,
+      }))
+      onChange(pagamentos)
+    }
+  }, [modo, cotasAtuais, socios, custoTotal, value.length, onChange])
+
   const handlePercentualChange = (socioId: string, novoPercentual: number) => {
     const novoValor = (custoTotal * novoPercentual) / 100
 
