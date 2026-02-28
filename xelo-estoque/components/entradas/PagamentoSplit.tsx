@@ -10,7 +10,7 @@ interface Socio {
 
 interface Cota {
   socioId: string
-  socioNome: string
+  socioNome?: string
   percentual: number
 }
 

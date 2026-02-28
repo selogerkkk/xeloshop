@@ -7,34 +7,48 @@ datasource db {
   url       = env("DATABASE_URL")
 }
 
-model Produto {
-  id           String   @id @default(uuid())
-  nome         String
-  linkProduto  String?
-  custo        Decimal  @db.Decimal(10, 2)
-  precoVenda   Decimal  @db.Decimal(10, 2)
-  quantidade   Int      @default(0)
-  ativo        Boolean  @default(true)
-  criadoEm     DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
-  
-  vendas       Venda[]
-  
-  @@map("produtos")
+// Enumerações
+enum TipoSocio {
+  PESSOA
+  EMPRESA
 }
 
-model Venda {
-  id          String   @id @default(uuid())
-  produtoId   String
-  produto     Produto  @relation(fields: [produtoId], references: [id])
-  quantidade  Int      @default(1)
-  canal       String   // ML, Facebook, Instagram, Outro
-  precoReal   Decimal  @db.Decimal(10, 2)
-  vendidoEm   DateTime @default(now())
-
-  @@map("vendas")
+enum TipoEstoque {
+  INDIVIDUAL
+  POOL
 }
 
+enum TipoEntrada {
+  COMPRA
+  REPOSICAO
+  TRANSFERENCIA
+  AJUSTE
+}
+
+enum StatusVenda {
+  CONCLUIDA
+  CANCELADA
+}
+
+enum StatusDistribuicao {
+  PENDENTE
+  LIBERADO
+  RETIDO
+}
+
+enum StatusSaque {
+  PENDENTE
+  APROVADO
+  PAGO
+  CANCELADO
+}
+
+enum StatusDivida {
+  ATIVA
+  QUITADA
+}
+
+// Usuário (autenticação - existente)
 model Usuario {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -45,4 +59,202 @@ model Usuario {
   atualizadoEm DateTime @updatedAt
 
   @@map("usuarios")
+}
+
+// Sócio (parceiro comercial)
+model Socio {
+  id               String    @id @default(uuid())
+  nome             String
+  tipo             TipoSocio
+  cor              String    // Hex para UI
+  ativo            Boolean   @default(true)
+
+  // Saldos
+  saldoDisponivel  Decimal   @default(0) @db.Decimal(12, 2)
+  saldoPendente    Decimal   @default(0) @db.Decimal(12, 2)
+  totalInvestido   Decimal   @default(0) @db.Decimal(12, 2)
+  totalRecebido    Decimal   @default(0) @db.Decimal(12, 2)
+  totalSacado      Decimal   @default(0) @db.Decimal(12, 2)
+
+  criadoEm         DateTime  @default(now())
+  atualizadoEm     DateTime  @updatedAt
+
+  // Relações
+  cotas            Cota[]
+  pagamentos       PagamentoEntrada[]
+  distribuicoes    DistribuicaoLucro[]
+  saques           Saque[]
+  dividas          DividaAjuste[]
+
+  @@map("socios")
+}
+
+// Produto (catálogo)
+model Produto {
+  id           String   @id @default(uuid())
+  nome         String
+  linkProduto  String?
+  sku          String?  @unique
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  estoques     Estoque[]
+  @@map("produtos")
+}
+
+// Estoque (pool de produto)
+model Estoque {
+  id                  String      @id @default(uuid())
+  produtoId           String
+  nome                String      // Ex: "Pool Nato+Ruan", "Individual Nato"
+  tipo                TipoEstoque
+  localFisico         String?
+
+  quantidadeTotal     Int         @default(0)
+  quantidadeDisponivel Int        @default(0)
+
+  custoMedio          Decimal     @default(0) @db.Decimal(10, 2)
+  valorTotalInvestido Decimal     @default(0) @db.Decimal(12, 2)
+
+  ativo               Boolean     @default(true)
+  criadoEm            DateTime    @default(now())
+  atualizadoEm        DateTime    @updatedAt
+
+  produto             Produto     @relation(fields: [produtoId], references: [id])
+  cotas               Cota[]
+  entradas            Entrada[]
+  vendaItens          VendaItem[]
+
+  @@map("estoques")
+}
+
+// Cota (participação no pool)
+model Cota {
+  id              String  @id @default(uuid())
+  estoqueId       String
+  socioId         String
+  percentual      Decimal @db.Decimal(5, 2)  // 0-100
+  valorInvestido  Decimal @db.Decimal(12, 2)
+
+  estoque         Estoque @relation(fields: [estoqueId], references: [id], onDelete: Cascade)
+  socio           Socio   @relation(fields: [socioId], references: [id], onDelete: Cascade)
+
+  @@unique([estoqueId, socioId])
+  @@map("cotas")
+}
+
+// Entrada de estoque (compra/reposição)
+model Entrada {
+  id              String      @id @default(uuid())
+  estoqueId       String
+  tipo            TipoEntrada
+  quantidade      Int
+  custoUnitario   Decimal     @db.Decimal(10, 2)
+  custoTotal      Decimal     @db.Decimal(12, 2)
+  fornecedor      String?
+  dataEntrada     DateTime    @default(now())
+
+  estoque         Estoque     @relation(fields: [estoqueId], references: [id])
+  pagamentos      PagamentoEntrada[]
+
+  @@map("entradas")
+}
+
+// Pagamento da entrada (quem pagou)
+model PagamentoEntrada {
+  id          String  @id @default(uuid())
+  entradaId   String
+  socioId     String
+  percentual  Decimal @db.Decimal(5, 2)
+  valor       Decimal @db.Decimal(12, 2)
+
+  entrada     Entrada @relation(fields: [entradaId], references: [id], onDelete: Cascade)
+  socio       Socio   @relation(fields: [socioId], references: [id])
+
+  @@map("pagamentos_entrada")
+}
+
+// Venda
+model Venda {
+  id                String          @id @default(uuid())
+  canal             String
+  receitaTotal      Decimal         @db.Decimal(12, 2)
+  custoTotal        Decimal         @db.Decimal(12, 2)
+  lucroTotal        Decimal         @db.Decimal(12, 2)
+
+  status            StatusVenda     @default(CONCLUIDA)
+
+  dataVenda         DateTime        @default(now())
+  dataCancelamento  DateTime?
+  motivoCancelamento String?
+
+  itens             VendaItem[]
+  distribuicoes     DistribuicaoLucro[]
+
+  @@map("vendas")
+}
+
+// Item da venda (de qual estoque saiu)
+model VendaItem {
+  id            String   @id @default(uuid())
+  vendaId       String
+  estoqueId     String
+  quantidade    Int
+  precoUnitario Decimal  @db.Decimal(10, 2)
+  custoUnitario Decimal  @db.Decimal(10, 2)
+  lucroTotal    Decimal  @db.Decimal(12, 2)
+
+  venda         Venda    @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  estoque       Estoque  @relation(fields: [estoqueId], references: [id])
+
+  @@map("venda_itens")
+}
+
+// Distribuição do lucro
+model DistribuicaoLucro {
+  id                String             @id @default(uuid())
+  vendaId           String
+  socioId           String
+  percentualAplicado Decimal           @db.Decimal(5, 2)
+  valor             Decimal            @db.Decimal(12, 2)
+  status            StatusDistribuicao @default(PENDENTE)
+  dataDistribuicao  DateTime           @default(now())
+
+  venda             Venda              @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  socio             Socio              @relation(fields: [socioId], references: [id])
+
+  @@map("distribuicoes_lucro")
+}
+
+// Saque (retirada de dinheiro)
+model Saque {
+  id          String      @id @default(uuid())
+  socioId     String
+  valor       Decimal     @db.Decimal(12, 2)
+  motivo      String?
+  status      StatusSaque @default(PENDENTE)
+  dataSolicitacao DateTime @default(now())
+  dataPagamento   DateTime?
+
+  socio       Socio       @relation(fields: [socioId], references: [id])
+
+  @@map("saques")
+}
+
+// Dívida de ajuste (cancelamento)
+model DividaAjuste {
+  id              String       @id @default(uuid())
+  socioId         String
+  valorOriginal   Decimal      @db.Decimal(12, 2)
+  valorPendente   Decimal      @db.Decimal(12, 2)
+  motivo          String
+  referenciaId    String?      // ID da venda cancelada
+  status          StatusDivida @default(ATIVA)
+  dataCriacao     DateTime     @default(now())
+  dataQuitacao    DateTime?
+
+  socio           Socio        @relation(fields: [socioId], references: [id])
+
+  @@map("dividas_ajuste")
 }

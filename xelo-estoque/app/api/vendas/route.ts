@@ -1,86 +1,85 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { listarVendas, criarVenda, previewDistribuicao } from '@/lib/services/vendaService'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const vendas = await prisma.venda.findMany({
-      include: {
-        produto: {
-          select: {
-            id: true,
-            nome: true,
-            custo: true
-          }
-        }
-      },
-      orderBy: {
-        vendidoEm: 'desc'
-      }
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status') ?? undefined
+    const canal = searchParams.get('canal') ?? undefined
+    const dataInicio = searchParams.get('dataInicio')
+      ? new Date(searchParams.get('dataInicio')!)
+      : undefined
+    const dataFim = searchParams.get('dataFim')
+      ? new Date(searchParams.get('dataFim')!)
+      : undefined
+
+    const vendas = await listarVendas({
+      status: status as 'CONCLUIDA' | 'CANCELADA' | undefined,
+      canal,
+      dataInicio,
+      dataFim,
     })
+
     return NextResponse.json(vendas)
   } catch (error) {
-    console.error('Erro ao buscar vendas:', error)
-    return NextResponse.json({ error: 'Erro ao buscar vendas' }, { status: 500 })
+    console.error('Erro ao listar vendas:', error)
+    return NextResponse.json(
+      { error: 'Erro ao listar vendas' },
+      { status: 500 }
+    )
   }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { produtoId, quantidade, canal, precoReal, dataVenda } = body
+    const { canal, itens, dataVenda, preview } = body
 
-    if (!produtoId || !quantidade || !canal || precoReal === undefined) {
-      return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
+    if (!canal || !itens || !Array.isArray(itens) || itens.length === 0) {
+      return NextResponse.json(
+        { error: 'Canal e pelo menos um item são obrigatórios' },
+        { status: 400 }
+      )
     }
 
-    // Verifica estoque
-    const produto = await prisma.produto.findUnique({
-      where: { id: produtoId }
+    // Valida estrutura dos itens
+    for (const item of itens) {
+      if (!item.estoqueId || item.quantidade === undefined || item.precoUnitario === undefined) {
+        return NextResponse.json(
+          { error: 'Cada item deve ter estoqueId, quantidade e precoUnitario' },
+          { status: 400 }
+        )
+      }
+      if (item.quantidade <= 0) {
+        return NextResponse.json(
+          { error: 'Quantidade deve ser maior que zero' },
+          { status: 400 }
+        )
+      }
+      if (item.precoUnitario <= 0) {
+        return NextResponse.json(
+          { error: 'Preço unitário deve ser maior que zero' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Se for preview, retorna a distribuição sem criar a venda
+    if (preview) {
+      const previewData = await previewDistribuicao(itens)
+      return NextResponse.json(previewData)
+    }
+
+    const resultado = await criarVenda({
+      canal,
+      itens,
+      dataVenda: dataVenda ? new Date(dataVenda) : undefined,
     })
 
-    if (!produto) {
-      return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 })
-    }
-
-    if (produto.quantidade < quantidade) {
-      return NextResponse.json({ error: 'Estoque insuficiente' }, { status: 400 })
-    }
-
-    // Cria venda e atualiza estoque em transação
-    const vendaData: {
-      produtoId: string
-      quantidade: number
-      canal: string
-      precoReal: number
-      vendidoEm?: Date
-    } = {
-      produtoId,
-      quantidade: Number.parseInt(quantidade),
-      canal,
-      precoReal
-    }
-
-    if (dataVenda) {
-      vendaData.vendidoEm = new Date(dataVenda)
-    }
-
-    const [venda] = await prisma.$transaction([
-      prisma.venda.create({
-        data: vendaData
-      }),
-      prisma.produto.update({
-        where: { id: produtoId },
-        data: {
-          quantidade: {
-            decrement: Number.parseInt(quantidade)
-          }
-        }
-      })
-    ])
-
-    return NextResponse.json(venda)
+    return NextResponse.json(resultado, { status: 201 })
   } catch (error) {
     console.error('Erro ao criar venda:', error)
-    return NextResponse.json({ error: 'Erro ao criar venda' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erro ao criar venda'
+    return NextResponse.json({ error: message }, { status: 400 })
   }
 }

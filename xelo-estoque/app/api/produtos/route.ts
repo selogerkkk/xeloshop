@@ -5,24 +5,31 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const todos = searchParams.get('todos') === 'true'
-    
-    // Busca todos e filtra no JS para evitar problemas de schema
-    const todosProdutos = await prisma.produto.findMany({
+
+    const produtos = await prisma.produto.findMany({
       include: {
-        _count: {
-          select: { vendas: true }
-        }
+        estoques: {
+          select: {
+            id: true,
+            nome: true,
+            tipo: true,
+            quantidadeDisponivel: true,
+            quantidadeTotal: true,
+            ativo: true,
+          },
+        },
       },
       orderBy: {
         atualizadoEm: 'desc'
       }
     })
-    
+
     // Filtra no JavaScript se não quiser mostrar inativos
-    const produtos = todos 
-      ? todosProdutos 
-      : todosProdutos.filter(p => p.ativo !== false)
-    return NextResponse.json(produtos)
+    const produtosFiltrados = todos
+      ? produtos
+      : produtos.filter(p => p.ativo !== false)
+
+    return NextResponse.json(produtosFiltrados)
   } catch (error: any) {
     console.error('Erro ao buscar produtos:', error)
     return NextResponse.json({ error: 'Erro ao buscar produtos', details: error.message }, { status: 500 })
@@ -32,25 +39,24 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { nome, linkProduto, custo, precoVenda, quantidade } = body
+    const { nome, linkProduto, sku } = body
 
-    if (!nome || custo === undefined || precoVenda === undefined || quantidade === undefined) {
-      return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 })
+    if (!nome) {
+      return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 })
     }
 
     const produto = await prisma.produto.create({
       data: {
         nome,
         linkProduto: linkProduto || null,
-        custo,
-        precoVenda,
-        quantidade: parseInt(quantidade)
+        sku: sku || null,
       }
     })
 
-    return NextResponse.json(produto)
+    return NextResponse.json(produto, { status: 201 })
   } catch (error) {
     console.error('Erro ao criar produto:', error)
-    return NextResponse.json({ error: 'Erro ao criar produto' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Erro ao criar produto'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

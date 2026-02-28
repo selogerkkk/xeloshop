@@ -119,8 +119,8 @@ export default function Home() {
 
           {activeTab === 'dashboard' && (
             <ViewToggle
-              view={dashboardView}
-              onChange={setDashboardView}
+              activeView={dashboardView}
+              onViewChange={setDashboardView}
             />
           )}
         </div>
