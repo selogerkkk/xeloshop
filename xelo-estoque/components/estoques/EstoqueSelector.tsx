@@ -43,13 +43,24 @@ export function EstoqueSelector({
 
     setLoading(true)
     fetch(`/api/estoques/disponiveis?produtoId=${produtoId}&quantidadeMinima=${quantidadeDesejada}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Erro ao buscar estoques: ${res.status}`)
+        }
+        return res.json()
+      })
       .then((data) => {
+        if (!Array.isArray(data)) {
+          throw new Error('Resposta inválida da API')
+        }
         setEstoques(data)
         // Auto-select oldest (first in list) if none selected
         if (data.length > 0 && !selectedId) {
           onSelectRef.current(data[0].id)
         }
+      })
+      .catch(() => {
+        setEstoques([])
       })
       .finally(() => setLoading(false))
   }, [produtoId, quantidadeDesejada, selectedId])
