@@ -38,8 +38,12 @@ export function EstoqueSelector({
     onSelectRef.current = onSelect
   }, [onSelect])
 
+  // Efeito 1: Busca estoques quando produto ou quantidade mudam
   useEffect(() => {
-    if (!produtoId) return
+    if (!produtoId) {
+      setEstoques([])
+      return
+    }
 
     setLoading(true)
     fetch(`/api/estoques/disponiveis?produtoId=${produtoId}&quantidadeMinima=${quantidadeDesejada}`)
@@ -54,16 +58,20 @@ export function EstoqueSelector({
           throw new Error('Resposta inválida da API')
         }
         setEstoques(data)
-        // Auto-select oldest (first in list) if none selected
-        if (data.length > 0 && !selectedId) {
-          onSelectRef.current(data[0].id)
-        }
       })
       .catch(() => {
         setEstoques([])
       })
       .finally(() => setLoading(false))
-  }, [produtoId, quantidadeDesejada, selectedId])
+  }, [produtoId, quantidadeDesejada])
+
+  // Efeito 2: Auto-seleção quando estoques carregam ou selectedId muda
+  useEffect(() => {
+    // Auto-select oldest (first in list) se nenhum estiver selecionado
+    if (estoques.length > 0 && !selectedId) {
+      onSelectRef.current(estoques[0].id)
+    }
+  }, [estoques, selectedId])
 
   if (loading) {
     return <div className="text-sm text-gray-500">Carregando estoques...</div>
