@@ -98,20 +98,12 @@ export async function criarSaque(input: CreateSaqueInput): Promise<saques> {
 
 /**
  * Atualiza o status de um saque
+ * Revalida a transição dentro da transação para evitar pagamento em duplicidade
  */
 export async function atualizarStatusSaque(
   id: string,
   status: StatusSaque
 ): Promise<saques> {
-  const saque = await prisma.saques.findUnique({
-    where: { id },
-  })
-
-  if (!saque) {
-    throw new Error('Saque não encontrado')
-  }
-
-  // Valida transições de status
   const transicoesValidas: Record<StatusSaque, StatusSaque[]> = {
     PENDENTE: ['APROVADO', 'CANCELADO'],
     APROVADO: ['PAGO', 'CANCELADO'],
@@ -119,26 +111,42 @@ export async function atualizarStatusSaque(
     CANCELADO: [],
   }
 
-  if (!transicoesValidas[saque.status].includes(status)) {
-    throw new Error(
-      `Transição de status inválida: ${saque.status} -> ${status}`
-    )
-  }
-
   return prisma.$transaction(async (tx) => {
-    // Se está sendo pago, processa o saque (passando transaction client)
+    // Re-lê o saque DENTRO da transação para garantir estado atual
+    const saque = await tx.saques.findUnique({
+      where: { id },
+    })
+
+    if (!saque) {
+      throw new Error('Saque não encontrado')
+    }
+
+    // Valida transição de status dentro da transação
+    if (!transicoesValidas[saque.status].includes(status)) {
+      throw new Error(
+        `Transição de status inválida: ${saque.status} -> ${status}`
+      )
+    }
+
+    // Se está sendo pago, processa o saque
     if (status === 'PAGO') {
       await processarSaque(saque.socioId, Number(saque.valor), tx)
     }
 
-    // Atualiza o saque
-    return tx.saques.update({
-      where: { id },
+    // Usa updateMany com CAS para garantir que só atualiza se status não mudou
+    const atualizado = await tx.saques.updateMany({
+      where: { id, status: saque.status },
       data: {
         status,
         dataPagamento: status === 'PAGO' ? new Date() : undefined,
       },
     })
+
+    if (atualizado.count === 0) {
+      throw new Error('Status do saque foi alterado por outra operação. Tente novamente.')
+    }
+
+    return tx.saques.findUniqueOrThrow({ where: { id } })
   })
 }
 
