@@ -20,26 +20,30 @@ export async function POST(request: Request) {
       )
     }
 
-    const existingUser = await prisma.usuarios.findUnique({
-      where: { email }
-    })
-
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'Email já cadastrado' },
-        { status: 409 }
-      )
-    }
-
     const passwordHash = await hashPassword(password)
 
+    // Tenta criar o usuário diretamente - constraint única no banco previne duplicatas
+    // Isso é atômico e evita TOCTOU (Time-Of-Check-Time-Of-Use)
     const user = await prisma.usuarios.create({
       data: {
         nome,
         email,
         passwordHash,
       }
+    }).catch((error) => {
+      // Se violou constraint única (email já existe)
+      if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
+        return null
+      }
+      throw error
     })
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Email já cadastrado' },
+        { status: 409 }
+      )
+    }
 
     const token = await createToken({
       id: user.id,
