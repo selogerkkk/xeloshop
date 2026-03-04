@@ -225,6 +225,7 @@ export async function liberarSaldoPendente(
 
 /**
  * Processa um saque do sócio
+ * Usa updateMany condicional para garantir atomicidade (evita TOCTOU)
  */
 export async function processarSaque(
   socioId: string,
@@ -233,29 +234,28 @@ export async function processarSaque(
 ): Promise<void> {
   const client = tx || prisma
 
+  // Verifica existência para mensagem de erro adequada
   const socio = await client.socios.findUnique({
     where: { id: socioId },
+    select: { id: true, saldoDisponivel: true },
   })
 
   if (!socio) {
     throw new Error('Sócio não encontrado')
   }
 
-  if (Number(socio.saldoDisponivel) < valor) {
-    throw new Error('Saldo insuficiente')
-  }
-
-  await client.socios.update({
-    where: { id: socioId },
+  // updateMany com condição garante atomicidade: só decrementa se saldo >= valor
+  const atualizado = await client.socios.updateMany({
+    where: { id: socioId, saldoDisponivel: { gte: valor } },
     data: {
-      saldoDisponivel: {
-        decrement: valor,
-      },
-      totalSacado: {
-        increment: valor,
-      },
+      saldoDisponivel: { decrement: valor },
+      totalSacado: { increment: valor },
     },
   })
+
+  if (atualizado.count === 0) {
+    throw new Error('Saldo insuficiente')
+  }
 }
 
 /**
