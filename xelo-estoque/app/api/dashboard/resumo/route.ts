@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 import { obterResumoVendas } from '@/lib/services/vendaService'
+
+// Tipo inferido do Prisma para estoque com relações
+ type EstoqueComRelacoes = Prisma.estoquesGetPayload<{
+  include: {
+    produtos: { select: { nome: true } }
+    cotas: {
+      include: {
+        socios: { select: { nome: true; cor: true } }
+      }
+    }
+  }
+}>
 import { obterResumoEntradas } from '@/lib/services/entradaService'
 import { obterResumoSaques } from '@/lib/services/saqueService'
 import { obterResumoDistribuicoes } from '@/lib/services/distribuicaoService'
@@ -76,7 +89,7 @@ export async function GET(request: Request) {
       },
     })
 
-    const resumoEstoques = estoques.map((e: any) => ({
+    const resumoEstoques = estoques.map((e: EstoqueComRelacoes) => ({
       id: e.id,
       nome: e.nome,
       tipo: e.tipo,
@@ -85,7 +98,7 @@ export async function GET(request: Request) {
       quantidadeTotal: e.quantidadeTotal,
       custoMedio: Number(e.custoMedio),
       valorTotalInvestido: Number(e.valorTotalInvestido),
-      cotas: e.cotas.map((c: any) => ({
+      cotas: e.cotas.map((c) => ({
         socioNome: c.socios.nome,
         socioCor: c.socios.cor,
         percentual: Number(c.percentual),
