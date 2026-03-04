@@ -237,13 +237,19 @@ export async function criarEntrada(
     })
 
     // 4. Atualiza o estoque (quantidade e custo médio)
+    // Usa updateMany com verificação de consistência para evitar lost updates
     const valorTotalInvestido = Number(estoque.valorTotalInvestido) + custoTotal
     const novaQuantidade = estoque.quantidadeTotal + input.quantidade
     const novoCustoMedio =
       novaQuantidade > 0 ? valorTotalInvestido / novaQuantidade : 0
 
-    await tx.estoques.update({
-      where: { id: input.estoqueId },
+    const estoqueAtualizado = await tx.estoques.updateMany({
+      where: {
+        id: input.estoqueId,
+        // Verifica se o estoque ainda tem os valores que lemos (evita lost update)
+        quantidadeTotal: estoque.quantidadeTotal,
+        valorTotalInvestido: estoque.valorTotalInvestido,
+      },
       data: {
         quantidadeTotal: novaQuantidade,
         quantidadeDisponivel: {
@@ -253,6 +259,12 @@ export async function criarEntrada(
         valorTotalInvestido: valorTotalInvestido,
       },
     })
+
+    if (estoqueAtualizado.count === 0) {
+      throw new Error(
+        'Conflito de atualização: estoque foi modificado por outra operação. Tente novamente.'
+      )
+    }
 
     // 5. Atualiza total investido dos sócios
     for (const pagamento of input.pagamentos) {
