@@ -14,10 +14,16 @@ export async function GET(request: Request) {
       )
     }
 
-    const estoques = await buscarEstoquesDisponiveis(
-      produtoId,
-      quantidadeMinima ? parseInt(quantidadeMinima) : 1
-    )
+    // Valida quantidadeMinima
+    const qtdMinima = quantidadeMinima ? parseInt(quantidadeMinima, 10) : 1
+    if (!Number.isFinite(qtdMinima) || qtdMinima <= 0) {
+      return NextResponse.json(
+        { error: 'quantidadeMinima deve ser um número inteiro positivo' },
+        { status: 400 }
+      )
+    }
+
+    const estoques = await buscarEstoquesDisponiveis(produtoId, qtdMinima)
 
     return NextResponse.json(estoques)
   } catch (error) {
