@@ -22,6 +22,7 @@ export async function GET(request: Request) {
       )
     }
 
+    // Busca sócio com cotas e dívidas
     const socio = await prisma.socios.findUnique({
       where: { id: socioId },
       include: {
@@ -33,14 +34,6 @@ export async function GET(request: Request) {
               },
             },
           },
-        },
-        distribuicoes_lucro: {
-          orderBy: { dataDistribuicao: 'desc' },
-          take: 50,
-        },
-        saques: {
-          orderBy: { dataSolicitacao: 'desc' },
-          take: 20,
         },
         dividas_ajuste: {
           where: { status: 'ATIVA' },
@@ -55,21 +48,52 @@ export async function GET(request: Request) {
       )
     }
 
-    // Calcula totais
-    const totalDistribuicoesPendentes = socio.distribuicoes_lucro
-      .filter((d: DistribuicaoComValor) => d.status === 'PENDENTE')
-      .reduce((sum: number, d: DistribuicaoComValor) => sum + Number(d.valor), 0)
+    // Busca TODAS as distribuições para calcular totais corretamente
+    const todasDistribuicoes = await prisma.distribuicoes_lucro.findMany({
+      where: { socioId },
+      select: {
+        id: true,
+        valor: true,
+        status: true,
+        dataDistribuicao: true,
+      },
+    })
 
-    const totalDistribuicoesLiberadas = socio.distribuicoes_lucro
-      .filter((d: DistribuicaoComValor) => d.status === 'LIBERADO')
-      .reduce((sum: number, d: DistribuicaoComValor) => sum + Number(d.valor), 0)
+    // Busca apenas as 50 mais recentes para o histórico
+    const historicoDistribuicoes = await prisma.distribuicoes_lucro.findMany({
+      where: { socioId },
+      orderBy: { dataDistribuicao: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        valor: true,
+        status: true,
+        dataDistribuicao: true,
+      },
+    })
 
-    const totalDistribuicoesRetidas = socio.distribuicoes_lucro
-      .filter((d: DistribuicaoComValor) => d.status === 'RETIDO')
-      .reduce((sum: number, d: DistribuicaoComValor) => sum + Number(d.valor), 0)
+    // Busca saques recentes
+    const saquesRecentes = await prisma.saques.findMany({
+      where: { socioId },
+      orderBy: { dataSolicitacao: 'desc' },
+      take: 20,
+    })
+
+    // Calcula totais a partir de TODAS as distribuições
+    const totalDistribuicoesPendentes = todasDistribuicoes
+      .filter((d) => d.status === 'PENDENTE')
+      .reduce((sum, d) => sum + Number(d.valor), 0)
+
+    const totalDistribuicoesLiberadas = todasDistribuicoes
+      .filter((d) => d.status === 'LIBERADO')
+      .reduce((sum, d) => sum + Number(d.valor), 0)
+
+    const totalDistribuicoesRetidas = todasDistribuicoes
+      .filter((d) => d.status === 'RETIDO')
+      .reduce((sum, d) => sum + Number(d.valor), 0)
 
     const totalDividas = socio.dividas_ajuste.reduce(
-      (sum: number, d: DividaComValorPendente) => sum + Number(d.valorPendente),
+      (sum, d) => sum + Number(d.valorPendente),
       0
     )
 
@@ -102,7 +126,7 @@ export async function GET(request: Request) {
         pendente: totalDistribuicoesPendentes,
         liberado: totalDistribuicoesLiberadas,
         retido: totalDistribuicoesRetidas,
-        historicoRecente: socio.distribuicoes_lucro.map((d: DistribuicaoComValor) => ({
+        historicoRecente: historicoDistribuicoes.map((d) => ({
           id: d.id,
           valor: Number(d.valor),
           status: d.status,
@@ -110,7 +134,7 @@ export async function GET(request: Request) {
         })),
       },
       saques: {
-        recentes: socio.saques.map((s: saques) => ({
+        recentes: saquesRecentes.map((s: saques) => ({
           id: s.id,
           valor: Number(s.valor),
           status: s.status,
