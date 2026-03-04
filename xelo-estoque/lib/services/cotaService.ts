@@ -150,8 +150,10 @@ export async function validarPercentual(
   const totalComNova = totalAtual + novoPercentual
   const restante = 100 - totalAtual
 
+  // Usa margem de erro para evitar problemas de ponto flutuante
+  const EPSILON = 0.01
   return {
-    valido: totalComNova <= 100,
+    valido: totalComNova <= 100 + EPSILON,
     restante,
   }
 }
@@ -165,8 +167,10 @@ export async function criarCotasEmLote(
 ): Promise<cotas[]> {
   const percentualTotal = cotas.reduce((sum, c) => sum + c.percentual, 0)
 
-  if (percentualTotal !== 100) {
-    throw new Error(`Total percentual deve ser 100%, atual: ${percentualTotal}%`)
+  // Usa margem de erro para evitar problemas de ponto flutuante
+  const EPSILON = 0.01
+  if (Math.abs(percentualTotal - 100) > EPSILON) {
+    throw new Error(`Total percentual deve ser 100%, atual: ${percentualTotal.toFixed(2)}%`)
   }
 
   const estoqueId = cotas[0]?.estoqueId
