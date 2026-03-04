@@ -6,7 +6,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const todos = searchParams.get('todos') === 'true'
 
+    // Move o filtro para a query do Prisma (mais eficiente)
     const produtos = await prisma.produtos.findMany({
+      where: todos ? undefined : { ativo: true },
       include: {
         estoques: {
           select: {
@@ -24,42 +26,40 @@ export async function GET(request: Request) {
       }
     })
 
-    // Filtra no JavaScript se não quiser mostrar inativos
-    const produtosFiltrados = todos
-      ? produtos
-      : produtos.filter(p => p.ativo)
-
-    return NextResponse.json(produtosFiltrados)
-  } catch (error: any) {
+    return NextResponse.json(produtos)
+  } catch (error) {
     console.error('Erro ao buscar produtos:', error)
-    return NextResponse.json({ error: 'Erro ao buscar produtos', details: error.message }, { status: 500 })
+    // Não expõe detalhes internos do erro
+    return NextResponse.json({ error: 'Erro ao buscar produtos' }, { status: 500 })
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
+    const body = await request.json().catch(() => null)
+
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Payload inválido' }, { status: 400 })
+    }
+
     const { nome, linkProduto, sku } = body
 
-    if (!nome) {
+    if (typeof nome !== 'string' || !nome.trim()) {
       return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 })
     }
 
     const produto = await prisma.produtos.create({
       data: {
-        id: crypto.randomUUID(),
-        nome,
+        nome: nome.trim(),
         linkProduto: linkProduto || null,
         sku: sku || null,
-        criadoEm: new Date(),
-        atualizadoEm: new Date()
       }
     })
 
     return NextResponse.json(produto, { status: 201 })
   } catch (error) {
     console.error('Erro ao criar produto:', error)
-    const message = error instanceof Error ? error.message : 'Erro ao criar produto'
-    return NextResponse.json({ error: message }, { status: 500 })
+    // Não expõe detalhes internos do erro
+    return NextResponse.json({ error: 'Erro ao criar produto' }, { status: 500 })
   }
 }
