@@ -200,27 +200,55 @@ export async function atualizarSaldoAposDistribuicao(
 
 /**
  * Libera saldo pendente para disponível
+ * Valida limites e valores antes de processar
  */
 export async function liberarSaldoPendente(
   socioId: string,
   valor: number
 ): Promise<void> {
-  await prisma.$transaction([
-    prisma.socios.update({
-      where: { id: socioId },
-      data: {
-        saldoPendente: {
-          decrement: valor,
-        },
-        saldoDisponivel: {
-          increment: valor,
-        },
-        totalRecebido: {
-          increment: valor,
-        },
+  // Validações de entrada
+  if (!Number.isFinite(valor) || valor <= 0) {
+    throw new Error('Valor deve ser um número positivo')
+  }
+
+  // Verifica existência e saldo do sócio
+  const socio = await prisma.socios.findUnique({
+    where: { id: socioId },
+    select: { id: true, saldoPendente: true },
+  })
+
+  if (!socio) {
+    throw new Error('Sócio não encontrado')
+  }
+
+  const saldoPendente = Number(socio.saldoPendente)
+
+  if (saldoPendente < valor) {
+    throw new Error(`Saldo pendente insuficiente. Disponível: ${saldoPendente}, Solicitado: ${valor}`)
+  }
+
+  // Usa updateMany com condição para garantir atomicidade
+  const atualizado = await prisma.socios.updateMany({
+    where: {
+      id: socioId,
+      saldoPendente: { gte: valor },
+    },
+    data: {
+      saldoPendente: {
+        decrement: valor,
       },
-    }),
-  ])
+      saldoDisponivel: {
+        increment: valor,
+      },
+      totalRecebido: {
+        increment: valor,
+      },
+    },
+  })
+
+  if (atualizado.count === 0) {
+    throw new Error('Saldo pendente foi alterado por outra operação')
+  }
 }
 
 /**
