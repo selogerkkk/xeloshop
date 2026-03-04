@@ -454,6 +454,7 @@ export async function criarVenda(
 /**
  * Cancela uma venda
  * Restaura estoque, cria dívidas de ajuste e reverte saldos
+ * Usa CAS (Compare-And-Swap) com updateMany para evitar cancelamento duplicado em corrida
  */
 export async function cancelarVenda(
   vendaId: string,
