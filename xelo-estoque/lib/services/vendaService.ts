@@ -513,15 +513,18 @@ export async function cancelarVenda(
         },
       })
 
-      // Reverte saldo pendente
-      await tx.socios.update({
-        where: { id: dist.socioId },
-        data: {
-          saldoPendente: {
-            decrement: Number(dist.valor),
-          },
-        },
-      })
+      // Reverte do campo correto: LIBERADO → saldoDisponivel, demais → saldoPendente
+      if (dist.status === 'LIBERADO') {
+        await tx.socios.update({
+          where: { id: dist.socioId },
+          data: { saldoDisponivel: { decrement: Number(dist.valor) } },
+        })
+      } else {
+        await tx.socios.update({
+          where: { id: dist.socioId },
+          data: { saldoPendente: { decrement: Number(dist.valor) } },
+        })
+      }
     }
 
     // 3. Marca venda como cancelada
