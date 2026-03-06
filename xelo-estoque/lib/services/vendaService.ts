@@ -234,6 +234,9 @@ export async function previewDistribuicao(
   let custoTotal = 0
   let lucroTotal = 0
 
+  // Build socio name map from already-fetched estoque data (avoids N+1 query)
+  const socioNomes: Record<string, string> = {}
+
   for (const item of itens) {
     const estoque = await prisma.estoques.findUnique({
       where: { id: item.estoqueId },
@@ -261,6 +264,13 @@ export async function previewDistribuicao(
     const itemCustoTotal = custoUnitario * item.quantidade
     const itemReceitaTotal = item.precoUnitario * item.quantidade
     const itemLucroTotal = itemReceitaTotal - itemCustoTotal
+
+    // Build socio name map from already-fetched data
+    for (const cota of estoque.cotas) {
+      if (!socioNomes[cota.socioId]) {
+        socioNomes[cota.socioId] = cota.socios.nome
+      }
+    })
 
     // Calcula distribuição baseada nas cotas
     const distribuicao = estoque.cotas.map((c) => ({
@@ -290,12 +300,8 @@ export async function previewDistribuicao(
   for (const item of resultadoItens) {
     for (const dist of item.distribuicao) {
       if (!distribuicaoPorSocio[dist.socioId]) {
-        const socio = await prisma.socios.findUnique({
-          where: { id: dist.socioId },
-          select: { nome: true },
-        })
         distribuicaoPorSocio[dist.socioId] = {
-          nome: socio?.nome || 'Desconhecido',
+          nome: socioNomes[dist.socioId] || 'Desconhecido',
           valor: 0,
         }
       }
@@ -325,22 +331,40 @@ export async function criarVenda(
     throw new Error('Canal e pelo menos um item são obrigatórios')
   }
 
+  // Per-item validation
+  for (const item of input.itens) {
+    if (item.quantidade <= 0) {
+      throw new Error('Quantidade deve ser maior que zero')
+    }
+    if (item.precoUnitario < 0) {
+      throw new Error('Preço unitário não pode ser negativo')
+    }
+  }
+
   // Executa tudo em uma transação
   return prisma.$transaction(async (tx) => {
-    // Verifica disponibilidade DENTRO da transação (evita TOCTOU)
+    // Atomic availability check and decrement using updateMany
     for (const item of input.itens) {
-      const estoque = await tx.estoques.findUnique({
-        where: { id: item.estoqueId },
-        select: { quantidadeDisponivel: true, nome: true }
+      const result = await tx.estoques.updateMany({
+        where: {
+          id: item.estoqueId,
+          quantidadeDisponivel: { gte: item.quantidade }
+        },
+        data: {
+          quantidadeTotal: { decrement: item.quantidade },
+          quantidadeDisponivel: { decrement: item.quantidade }
+        }
       })
 
-      if (!estoque) {
-        throw new Error(`Estoque ${item.estoqueId} não encontrado`)
-      }
-
-      if (estoque.quantidadeDisponivel < item.quantidade) {
+      if (result.count === 0) {
+        const estoque = await tx.estoques.findUnique({
+          where: { id: item.estoqueId },
+          select: { nome: true }
+        })
         throw new Error(
-          `Quantidade insuficiente no estoque ${estoque.nome}. Disponível: ${estoque.quantidadeDisponivel}`
+          estoque
+            ? `Quantidade insuficiente no estoque ${estoque.nome}`
+            : `Estoque ${item.estoqueId} não encontrado`
         )
       }
     }
@@ -388,19 +412,6 @@ export async function criarVenda(
           precoUnitario: item.precoUnitario,
           custoUnitario,
           lucroTotal: itemLucroTotal,
-        },
-      })
-
-      // Atualiza estoque
-      await tx.estoques.update({
-        where: { id: item.estoqueId },
-        data: {
-          quantidadeTotal: {
-            decrement: item.quantidade,
-          },
-          quantidadeDisponivel: {
-            decrement: item.quantidade,
-          },
         },
       })
 
@@ -460,23 +471,27 @@ export async function cancelarVenda(
   vendaId: string,
   motivo: string
 ): Promise<void> {
-  const venda = await prisma.vendas.findUnique({
-    where: { id: vendaId },
-    include: {
-      venda_itens: true,
-      distribuicoes_lucro: true,
-    },
-  })
-
-  if (!venda) {
-    throw new Error('Venda não encontrada')
-  }
-
-  if (venda.status === 'CANCELADA') {
-    throw new Error('Venda já está cancelada')
-  }
-
   await prisma.$transaction(async (tx) => {
+    // Get venda with CAS-style check inside transaction
+    const venda = await tx.vendas.findUnique({
+      where: { id: vendaId },
+      include: {
+        venda_itens: true,
+        distribuicoes_lucro: true,
+      },
+    })
+
+    if (!venda) {
+      throw new Error('Venda não encontrada')
+    }
+
+    if (venda.status === 'CANCELADA') {
+      throw new Error('Venda já está cancelada')
+    }
+
+    // Store current status for CAS
+    const currentStatus = venda.status
+
     // 1. Restaura quantidade dos estoques
     for (const item of venda.venda_itens) {
       await tx.estoques.update({
@@ -527,15 +542,22 @@ export async function cancelarVenda(
       }
     }
 
-    // 3. Marca venda como cancelada
-    await tx.vendas.update({
-      where: { id: vendaId },
+    // 3. CAS-style update - only updates if status hasn't changed
+    const result = await tx.vendas.updateMany({
+      where: {
+        id: vendaId,
+        status: { not: 'CANCELADA' }
+      },
       data: {
         status: 'CANCELADA',
         dataCancelamento: new Date(),
         motivoCancelamento: motivo,
-      },
+      }
     })
+
+    if (result.count === 0) {
+      throw new Error('Venda já foi cancelada por outra operação')
+    }
   })
 }
 

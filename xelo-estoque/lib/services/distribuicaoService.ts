@@ -123,7 +123,10 @@ export async function liberarMultiplasDistribuicoes(
 /**
  * Obtém resumo de distribuições
  */
-export async function obterResumoDistribuicoes(): Promise<{
+export async function obterResumoDistribuicoes(
+  dataInicio?: Date,
+  dataFim?: Date
+): Promise<{
   totalPendente: number
   totalLiberado: number
   totalRetido: number
@@ -131,14 +134,27 @@ export async function obterResumoDistribuicoes(): Promise<{
   valorLiberado: number
   valorRetido: number
 }> {
+  const whereClause = {
+    dataDistribuicao: {
+      gte: dataInicio,
+      lte: dataFim,
+    },
+  }
+
   const [
     pendentes,
     liberadas,
     retidas,
   ] = await Promise.all([
-    prisma.distribuicoes_lucro.findMany({ where: { status: 'PENDENTE' } }),
-    prisma.distribuicoes_lucro.findMany({ where: { status: 'LIBERADO' } }),
-    prisma.distribuicoes_lucro.findMany({ where: { status: 'RETIDO' } }),
+    prisma.distribuicoes_lucro.findMany({
+      where: { ...whereClause, status: 'PENDENTE' }
+    }),
+    prisma.distribuicoes_lucro.findMany({
+      where: { ...whereClause, status: 'LIBERADO' }
+    }),
+    prisma.distribuicoes_lucro.findMany({
+      where: { ...whereClause, status: 'RETIDO' }
+    }),
   ])
 
   return {

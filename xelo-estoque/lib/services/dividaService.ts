@@ -224,15 +224,29 @@ export async function compensarDividasComSaldo(
 /**
  * Obtém resumo de dívidas
  */
-export async function obterResumoDividas(): Promise<{
+export async function obterResumoDividas(
+  dataInicio?: Date,
+  dataFim?: Date
+): Promise<{
   totalAtivas: number
   totalQuitadas: number
   valorTotalAtivo: number
   valorTotalQuitado: number
 }> {
+  const whereClause = {
+    dataCriacao: {
+      gte: dataInicio,
+      lte: dataFim,
+    },
+  }
+
   const [ativas, quitadas] = await Promise.all([
-    prisma.dividas_ajuste.findMany({ where: { status: 'ATIVA' } }),
-    prisma.dividas_ajuste.findMany({ where: { status: 'QUITADA' } }),
+    prisma.dividas_ajuste.findMany({
+      where: { ...whereClause, status: 'ATIVA' }
+    }),
+    prisma.dividas_ajuste.findMany({
+      where: { ...whereClause, status: 'QUITADA' }
+    }),
   ])
 
   return {

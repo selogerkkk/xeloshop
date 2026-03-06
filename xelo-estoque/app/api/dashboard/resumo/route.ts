@@ -18,12 +18,35 @@ import { obterResumoEntradas } from '@/lib/services/entradaService'
 import { obterResumoSaques } from '@/lib/services/saqueService'
 import { obterResumoDistribuicoes } from '@/lib/services/distribuicaoService'
 import { obterResumoDividas } from '@/lib/services/dividaService'
+import { getCurrentUser } from '@/lib/auth'
 
 export async function GET(request: Request) {
+  // Authorization check
+  const user = await getCurrentUser()
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Não autenticado' },
+      { status: 401 }
+    )
+  }
+
+  // TODO: Check role (admin/finance) once roles are added to UserPayload
+  // For now, all authenticated users can access
+  // In future: if user.role not in ['admin', 'finance'], filter by user.id
+
   try {
     const { searchParams } = new URL(request.url)
     const periodo = searchParams.get('periodo') ?? '30' // dias
-    const dias = parseInt(periodo)
+    let dias = Number.parseInt(periodo, 10) // Explicit base 10
+
+    // Validate and clamp
+    if (!Number.isFinite(dias) || dias < 1) {
+      // Default to 30 if invalid
+      dias = 30
+    } else if (dias > 365) {
+      // Cap at 1 year
+      dias = 365
+    }
 
     const dataInicio = new Date()
     dataInicio.setDate(dataInicio.getDate() - dias)
@@ -39,9 +62,9 @@ export async function GET(request: Request) {
     ] = await Promise.all([
       obterResumoVendas(dataInicio),
       obterResumoEntradas(dataInicio),
-      obterResumoSaques(),
-      obterResumoDistribuicoes(),
-      obterResumoDividas(),
+      obterResumoSaques(dataInicio),
+      obterResumoDistribuicoes(dataInicio),
+      obterResumoDividas(dataInicio),
       prisma.estoques.count({ where: { ativo: true } }),
       prisma.socios.count({ where: { ativo: true } }),
     ])

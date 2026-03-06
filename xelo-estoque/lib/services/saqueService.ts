@@ -181,17 +181,33 @@ export async function cancelarSaque(
 /**
  * Obtém resumo de saques
  */
-export async function obterResumoSaques(): Promise<{
+export async function obterResumoSaques(
+  dataInicio?: Date,
+  dataFim?: Date
+): Promise<{
   totalPendentes: number
   totalAprovados: number
   totalPagos: number
   valorTotalPendente: number
   valorTotalPago: number
 }> {
+  const whereClause = {
+    dataSolicitacao: {
+      gte: dataInicio,
+      lte: dataFim,
+    },
+  }
+
   const [pendentes, aprovados, pagos] = await Promise.all([
-    prisma.saques.findMany({ where: { status: 'PENDENTE' } }),
-    prisma.saques.findMany({ where: { status: 'APROVADO' } }),
-    prisma.saques.findMany({ where: { status: 'PAGO' } }),
+    prisma.saques.findMany({
+      where: { ...whereClause, status: 'PENDENTE' }
+    }),
+    prisma.saques.findMany({
+      where: { ...whereClause, status: 'APROVADO' }
+    }),
+    prisma.saques.findMany({
+      where: { ...whereClause, status: 'PAGO' }
+    }),
   ])
 
   return {
