@@ -146,24 +146,30 @@ export async function obterResumoDistribuicoes(
     liberadas,
     retidas,
   ] = await Promise.all([
-    prisma.distribuicoes_lucro.findMany({
-      where: { ...whereClause, status: 'PENDENTE' }
+    prisma.distribuicoes_lucro.aggregate({
+      where: { ...whereClause, status: 'PENDENTE' },
+      _count: { id: true },
+      _sum: { valor: true },
     }),
-    prisma.distribuicoes_lucro.findMany({
-      where: { ...whereClause, status: 'LIBERADO' }
+    prisma.distribuicoes_lucro.aggregate({
+      where: { ...whereClause, status: 'LIBERADO' },
+      _count: { id: true },
+      _sum: { valor: true },
     }),
-    prisma.distribuicoes_lucro.findMany({
-      where: { ...whereClause, status: 'RETIDO' }
+    prisma.distribuicoes_lucro.aggregate({
+      where: { ...whereClause, status: 'RETIDO' },
+      _count: { id: true },
+      _sum: { valor: true },
     }),
   ])
 
   return {
-    totalPendente: pendentes.length,
-    totalLiberado: liberadas.length,
-    totalRetido: retidas.length,
-    valorPendente: pendentes.reduce((sum, d) => sum + Number(d.valor), 0),
-    valorLiberado: liberadas.reduce((sum, d) => sum + Number(d.valor), 0),
-    valorRetido: retidas.reduce((sum, d) => sum + Number(d.valor), 0),
+    totalPendente: pendentes._count.id,
+    totalLiberado: liberadas._count.id,
+    totalRetido: retidas._count.id,
+    valorPendente: Number(pendentes._sum.valor) || 0,
+    valorLiberado: Number(liberadas._sum.valor) || 0,
+    valorRetido: Number(retidas._sum.valor) || 0,
   }
 }
 

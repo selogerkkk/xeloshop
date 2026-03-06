@@ -48,9 +48,10 @@ export async function GET(request: Request) {
       )
     }
 
-    // Busca TODAS as distribuições para calcular totais corretamente
+    // Busca TODAS as distribuições, já ordenadas (otimização: uma query única)
     const todasDistribuicoes = await prisma.distribuicoes_lucro.findMany({
       where: { socioId },
+      orderBy: { dataDistribuicao: 'desc' },
       select: {
         id: true,
         valor: true,
@@ -59,18 +60,8 @@ export async function GET(request: Request) {
       },
     })
 
-    // Busca apenas as 50 mais recentes para o histórico
-    const historicoDistribuicoes = await prisma.distribuicoes_lucro.findMany({
-      where: { socioId },
-      orderBy: { dataDistribuicao: 'desc' },
-      take: 50,
-      select: {
-        id: true,
-        valor: true,
-        status: true,
-        dataDistribuicao: true,
-      },
-    })
+    // O histórico são as 50 primeiras da lista completa
+    const historicoDistribuicoes = todasDistribuicoes.slice(0, 50)
 
     // Busca saques recentes
     const saquesRecentes = await prisma.saques.findMany({

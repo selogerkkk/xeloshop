@@ -574,44 +574,47 @@ export async function obterResumoVendas(
   lucroTotal: number
   porCanal: Record<string, { receita: number; lucro: number }>
 }> {
-  const vendas = await prisma.vendas.findMany({
-    where: {
-      status: 'CONCLUIDA',
-      dataVenda: {
-        gte: dataInicio,
-        lte: dataFim,
+  const [aggregates, porCanalResult] = await Promise.all([
+    prisma.vendas.aggregate({
+      where: {
+        status: 'CONCLUIDA',
+        dataVenda: {
+          gte: dataInicio,
+          lte: dataFim,
+        },
       },
-    },
-  })
+      _count: { id: true },
+      _sum: { receitaTotal: true, custoTotal: true, lucroTotal: true },
+    }),
+    prisma.vendas.groupBy({
+      by: ['canal'],
+      where: {
+        status: 'CONCLUIDA',
+        dataVenda: {
+          gte: dataInicio,
+          lte: dataFim,
+        },
+      },
+      _sum: {
+        receitaTotal: true,
+        lucroTotal: true,
+      },
+    }),
+  ])
 
-  const totalVendas = vendas.length
-  const receitaTotal = vendas.reduce(
-    (sum, v) => sum + Number(v.receitaTotal),
-    0
-  )
-  const custoTotal = vendas.reduce(
-    (sum, v) => sum + Number(v.custoTotal),
-    0
-  )
-  const lucroTotal = vendas.reduce(
-    (sum, v) => sum + Number(v.lucroTotal),
-    0
-  )
-
-  const porCanal = vendas.reduce((acc, v) => {
-    if (!acc[v.canal]) {
-      acc[v.canal] = { receita: 0, lucro: 0 }
+  const porCanal = porCanalResult.reduce((acc, item) => {
+    acc[item.canal] = {
+      receita: Number(item._sum.receitaTotal) || 0,
+      lucro: Number(item._sum.lucroTotal) || 0,
     }
-    acc[v.canal].receita += Number(v.receitaTotal)
-    acc[v.canal].lucro += Number(v.lucroTotal)
     return acc
   }, {} as Record<string, { receita: number; lucro: number }>)
 
   return {
-    totalVendas,
-    receitaTotal,
-    custoTotal,
-    lucroTotal,
+    totalVendas: aggregates._count.id,
+    receitaTotal: Number(aggregates._sum.receitaTotal) || 0,
+    custoTotal: Number(aggregates._sum.custoTotal) || 0,
+    lucroTotal: Number(aggregates._sum.lucroTotal) || 0,
     porCanal,
   }
 }

@@ -241,22 +241,23 @@ export async function obterResumoDividas(
   }
 
   const [ativas, quitadas] = await Promise.all([
-    prisma.dividas_ajuste.findMany({
-      where: { ...whereClause, status: 'ATIVA' }
+    prisma.dividas_ajuste.aggregate({
+      where: { ...whereClause, status: 'ATIVA' },
+      _count: { id: true },
+      _sum: { valorPendente: true },
     }),
-    prisma.dividas_ajuste.findMany({
-      where: { ...whereClause, status: 'QUITADA' }
+    prisma.dividas_ajuste.aggregate({
+      where: { ...whereClause, status: 'QUITADA' },
+      _count: { id: true },
+      _sum: { valorOriginal: true },
     }),
   ])
 
   return {
-    totalAtivas: ativas.length,
-    totalQuitadas: quitadas.length,
-    valorTotalAtivo: ativas.reduce((sum, d) => sum + Number(d.valorPendente), 0),
-    valorTotalQuitado: quitadas.reduce(
-      (sum, d) => sum + Number(d.valorOriginal),
-      0
-    ),
+    totalAtivas: ativas._count.id,
+    totalQuitadas: quitadas._count.id,
+    valorTotalAtivo: Number(ativas._sum.valorPendente) || 0,
+    valorTotalQuitado: Number(quitadas._sum.valorOriginal) || 0,
   }
 }
 

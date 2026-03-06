@@ -199,25 +199,29 @@ export async function obterResumoSaques(
   }
 
   const [pendentes, aprovados, pagos] = await Promise.all([
-    prisma.saques.findMany({
-      where: { ...whereClause, status: 'PENDENTE' }
+    prisma.saques.aggregate({
+      where: { ...whereClause, status: 'PENDENTE' },
+      _count: { id: true },
+      _sum: { valor: true },
     }),
-    prisma.saques.findMany({
-      where: { ...whereClause, status: 'APROVADO' }
+    prisma.saques.aggregate({
+      where: { ...whereClause, status: 'APROVADO' },
+      _count: { id: true },
+      _sum: { valor: true },
     }),
-    prisma.saques.findMany({
-      where: { ...whereClause, status: 'PAGO' }
+    prisma.saques.aggregate({
+      where: { ...whereClause, status: 'PAGO' },
+      _count: { id: true },
+      _sum: { valor: true },
     }),
   ])
 
   return {
-    totalPendentes: pendentes.length,
-    totalAprovados: aprovados.length,
-    totalPagos: pagos.length,
-    valorTotalPendente: [...pendentes, ...aprovados].reduce(
-      (sum, s) => sum + Number(s.valor),
-      0
-    ),
-    valorTotalPago: pagos.reduce((sum, s) => sum + Number(s.valor), 0),
+    totalPendentes: pendentes._count.id,
+    totalAprovados: aprovados._count.id,
+    totalPagos: pagos._count.id,
+    valorTotalPendente:
+      (Number(pendentes._sum.valor) || 0) + (Number(aprovados._sum.valor) || 0),
+    valorTotalPago: Number(pagos._sum.valor) || 0,
   }
 }

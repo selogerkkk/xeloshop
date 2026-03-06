@@ -379,34 +379,40 @@ export async function obterResumoEntradas(
   totalQuantidade: number
   porTipo: Record<TipoEntrada, number>
 }> {
-  const entradas = await prisma.entradas.findMany({
-    where: {
-      dataEntrada: {
-        gte: dataInicio,
-        lte: dataFim,
+  const [aggregates, porTipoResult] = await Promise.all([
+    prisma.entradas.aggregate({
+      where: {
+        dataEntrada: {
+          gte: dataInicio,
+          lte: dataFim,
+        },
       },
-    },
-  })
+      _count: { id: true },
+      _sum: { custoTotal: true, quantidade: true },
+    }),
+    prisma.entradas.groupBy({
+      by: ['tipo'],
+      where: {
+        dataEntrada: {
+          gte: dataInicio,
+          lte: dataFim,
+        },
+      },
+      _sum: {
+        custoTotal: true,
+      },
+    }),
+  ])
 
-  const totalEntradas = entradas.length
-  const totalInvestido = entradas.reduce(
-    (sum, e) => sum + Number(e.custoTotal),
-    0
-  )
-  const totalQuantidade = entradas.reduce(
-    (sum, e) => sum + e.quantidade,
-    0
-  )
-
-  const porTipo = entradas.reduce((acc, e) => {
-    acc[e.tipo] = (acc[e.tipo] || 0) + Number(e.custoTotal)
+  const porTipo = porTipoResult.reduce((acc, item) => {
+    acc[item.tipo] = Number(item._sum.custoTotal) || 0
     return acc
   }, {} as Record<TipoEntrada, number>)
 
   return {
-    totalEntradas,
-    totalInvestido,
-    totalQuantidade,
+    totalEntradas: aggregates._count.id,
+    totalInvestido: Number(aggregates._sum.custoTotal) || 0,
+    totalQuantidade: aggregates._sum.quantidade || 0,
     porTipo,
   }
 }
