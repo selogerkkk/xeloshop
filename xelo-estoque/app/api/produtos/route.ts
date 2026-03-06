@@ -48,11 +48,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 })
     }
 
+    // Validate and normalize optional fields
+    const validatedLinkProduto =
+      linkProduto !== null && linkProduto !== undefined
+        ? typeof linkProduto === 'string'
+          ? linkProduto.trim() || null
+          : null
+        : null
+
+    const validatedSku =
+      sku !== null && sku !== undefined
+        ? typeof sku === 'string'
+          ? sku.trim() || null
+          : null
+        : null
+
     const produto = await prisma.produtos.create({
       data: {
         nome: nome.trim(),
-        linkProduto: linkProduto || null,
-        sku: sku || null,
+        linkProduto: validatedLinkProduto,
+        sku: validatedSku,
       }
     })
 

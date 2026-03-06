@@ -58,7 +58,9 @@ async function main() {
   ])
 
   console.log(`✅ Criados ${socios.length} sócios:`)
-  socios.forEach(s => console.log(`   - ${s.nome} (${s.tipo})`))
+  for (const s of socios) {
+    console.log(`   - ${s.nome} (${s.tipo})`)
+  }
 
   console.log('🌱 Seed completado!')
 }

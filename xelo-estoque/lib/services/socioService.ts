@@ -96,6 +96,7 @@ export async function excluirSocio(id: string): Promise<void> {
       distribuicoes_lucro: true,
       saques: true,
       dividas_ajuste: true,
+      pagamentos_entrada: true,
     },
   })
 
@@ -107,7 +108,8 @@ export async function excluirSocio(id: string): Promise<void> {
     socio.cotas.length > 0 ||
     socio.distribuicoes_lucro.length > 0 ||
     socio.saques.length > 0 ||
-    socio.dividas_ajuste.length > 0
+    socio.dividas_ajuste.length > 0 ||
+    socio.pagamentos_entrada.length > 0
   ) {
     throw new Error('Não é possível excluir sócio com movimentações')
   }

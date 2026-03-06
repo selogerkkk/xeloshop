@@ -19,7 +19,7 @@ interface Estoque {
 interface EstoqueSelectorProps {
   produtoId: string
   quantidadeDesejada: number
-  onSelect: (estoqueId: string) => void
+  onSelect: (estoqueId?: string | null) => void
   selectedId?: string
 }
 
@@ -45,8 +45,13 @@ export function EstoqueSelector({
       return
     }
 
+    const controller = new AbortController()
+    const signal = controller.signal
+
     setLoading(true)
-    fetch(`/api/estoques/disponiveis?produtoId=${produtoId}&quantidadeMinima=${quantidadeDesejada}`)
+    fetch(`/api/estoques/disponiveis?produtoId=${produtoId}&quantidadeMinima=${quantidadeDesejada}`, {
+      signal,
+    })
       .then((res) => {
         if (!res.ok) {
           throw new Error(`Erro ao buscar estoques: ${res.status}`)
@@ -59,14 +64,30 @@ export function EstoqueSelector({
         }
         setEstoques(data)
       })
-      .catch(() => {
-        setEstoques([])
+      .catch((error) => {
+        if (error.name !== 'AbortError') {
+          setEstoques([])
+        }
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (!signal.aborted) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      controller.abort()
+    }
   }, [produtoId, quantidadeDesejada])
 
   // Efeito 2: Auto-seleção quando estoques carregam ou selectedId muda
   useEffect(() => {
+    // Clear selection if selectedId is not present in the refreshed estoques list
+    if (selectedId && estoques.length > 0 && !estoques.some((e) => e.id === selectedId)) {
+      onSelectRef.current(null)
+      return
+    }
+
     // Auto-select oldest (first in list) se nenhum estiver selecionado
     if (estoques.length > 0 && !selectedId) {
       onSelectRef.current(estoques[0].id)
@@ -91,10 +112,18 @@ export function EstoqueSelector({
     <div className="space-y-3">
       <p className="text-xs text-gray-500">Selecione o estoque (mais antigo sugerido):</p>
       {estoques.map((estoque) => (
-        <div
+        <button
           key={estoque.id}
-          onClick={() => onSelect(estoque.id)}
-          className={`glass-card p-4 cursor-pointer transition-all ${
+          type="button"
+          onClick={() => selectedId === estoque.id ? onSelect(null) : onSelect(estoque.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              selectedId === estoque.id ? onSelect(null) : onSelect(estoque.id)
+            }
+          }}
+          aria-pressed={selectedId === estoque.id}
+          className={`glass-card p-4 cursor-pointer transition-all w-full text-left ${
             selectedId === estoque.id
               ? 'border-emerald-500/50 bg-emerald-950/20'
               : 'hover:border-white/20'
@@ -121,7 +150,7 @@ export function EstoqueSelector({
             </div>
           </div>
           <CotaVisualizer cotas={estoque.cotas} showLegend={false} />
-        </div>
+        </button>
       ))}
     </div>
   )

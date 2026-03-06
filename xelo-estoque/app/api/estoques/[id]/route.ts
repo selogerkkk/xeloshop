@@ -39,6 +39,42 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const body = await request.json()
     const { nome, localFisico, ativo } = body
 
+    // Validate nome if provided
+    if (nome !== undefined) {
+      if (typeof nome !== 'string') {
+        return NextResponse.json(
+          { error: 'O campo "nome" deve ser uma string' },
+          { status: 400 }
+        )
+      }
+      if (nome.trim().length === 0) {
+        return NextResponse.json(
+          { error: 'O campo "nome" não pode ser vazio' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Validate localFisico if provided
+    if (localFisico !== undefined && localFisico !== null) {
+      if (typeof localFisico !== 'string') {
+        return NextResponse.json(
+          { error: 'O campo "localFisico" deve ser uma string' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Validate ativo if provided
+    if (ativo !== undefined) {
+      if (typeof ativo !== 'boolean') {
+        return NextResponse.json(
+          { error: 'O campo "ativo" deve ser um booleano' },
+          { status: 400 }
+        )
+      }
+    }
+
     const estoque = await atualizarEstoque(id, {
       nome,
       localFisico,

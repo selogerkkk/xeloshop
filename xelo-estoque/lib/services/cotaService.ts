@@ -163,9 +163,9 @@ export async function validarPercentual(
  * Usado ao criar um pool com distribuição definida
  */
 export async function criarCotasEmLote(
-  cotas: CreateCotaInput[]
+  cotasInput: CreateCotaInput[]
 ): Promise<cotas[]> {
-  const percentualTotal = cotas.reduce((sum, c) => sum + c.percentual, 0)
+  const percentualTotal = cotasInput.reduce((sum, c) => sum + c.percentual, 0)
 
   // Usa margem de erro para evitar problemas de ponto flutuante
   const EPSILON = 0.01
@@ -173,18 +173,18 @@ export async function criarCotasEmLote(
     throw new Error(`Total percentual deve ser 100%, atual: ${percentualTotal.toFixed(2)}%`)
   }
 
-  const estoqueId = cotas[0]?.estoqueId
+  const estoqueId = cotasInput[0]?.estoqueId
   if (!estoqueId) {
     throw new Error('EstoqueId é obrigatório')
   }
 
-  const todosMesmoEstoque = cotas.every((c) => c.estoqueId === estoqueId)
+  const todosMesmoEstoque = cotasInput.every((c) => c.estoqueId === estoqueId)
   if (!todosMesmoEstoque) {
     throw new Error('Todas as cotas devem ser do mesmo estoque')
   }
 
   return prisma.$transaction(
-    cotas.map((c) =>
+    cotasInput.map((c) =>
       prisma.cotas.create({
         data: {
           id: crypto.randomUUID(),

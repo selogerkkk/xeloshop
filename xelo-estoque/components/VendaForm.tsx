@@ -147,8 +147,8 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
     ? Object.entries(preview.distribuicaoPorSocio).map(([id, data]) => ({
         socioId: id,
         socioNome: data.nome,
-        socioCor: '#10B981', // Default color, ideally fetch from API
-        percentual: 0, // Calculate if needed
+        socioCor: data.cor,
+        percentual: data.percentual,
         valor: data.valor,
       }))
     : []
@@ -188,7 +188,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
             <EstoqueSelector
               produtoId={form.produtoId}
               quantidadeDesejada={parseInt(form.quantidade) || 1}
-              onSelect={(id) => setForm({ ...form, estoqueId: id })}
+              onSelect={(id) => setForm({ ...form, estoqueId: id ?? '' })}
               selectedId={form.estoqueId}
             />
           )}

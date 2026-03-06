@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server'
 import { cancelarVenda } from '@/lib/services/vendaService'
 
 interface RouteParams {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
-    const { id } = await params
+    const { id } = params
     const body = await request.json()
     const { motivo } = body
 

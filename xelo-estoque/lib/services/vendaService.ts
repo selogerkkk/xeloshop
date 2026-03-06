@@ -225,7 +225,7 @@ export async function previewDistribuicao(
     lucroTotal: number
     distribuicaoPorSocio: Record<
       string,
-      { nome: string; valor: number }
+      { nome: string; cor: string; valor: number; percentual: number }
     >
   }
 }> {
@@ -234,8 +234,8 @@ export async function previewDistribuicao(
   let custoTotal = 0
   let lucroTotal = 0
 
-  // Build socio name map from already-fetched estoque data (avoids N+1 query)
-  const socioNomes: Record<string, string> = {}
+  // Build socio data map from already-fetched estoque data (avoids N+1 query)
+  const socioData: Record<string, { nome: string; cor: string }> = {}
 
   for (const item of itens) {
     const estoque = await prisma.estoques.findUnique({
@@ -265,18 +265,21 @@ export async function previewDistribuicao(
     const itemReceitaTotal = item.precoUnitario * item.quantidade
     const itemLucroTotal = itemReceitaTotal - itemCustoTotal
 
-    // Build socio name map from already-fetched data
+    // Build socio data map from already-fetched data
     for (const cota of estoque.cotas) {
-      if (!socioNomes[cota.socioId]) {
-        socioNomes[cota.socioId] = cota.socios.nome
+      if (!socioData[cota.socioId]) {
+        socioData[cota.socioId] = {
+          nome: cota.socios.nome,
+          cor: cota.socios.cor,
+        }
       }
-    })
+    }
 
     // Calcula distribuição baseada nas cotas
     const distribuicao = estoque.cotas.map((c) => ({
       socioId: c.socioId,
       percentual: Number(c.percentual),
-      valor: Number((itemLucroTotal * Number(c.percentual)) / 100),
+      valor: Math.round((itemLucroTotal * Number(c.percentual)) / 100 * 100) / 100,
     }))
 
     resultadoItens.push({
@@ -294,19 +297,32 @@ export async function previewDistribuicao(
   }
 
   // Calcula distribuição total por sócio
-  const distribuicaoPorSocio: Record<string, { nome: string; valor: number }> =
-    {}
+  const distribuicaoPorSocio: Record<
+    string,
+    { nome: string; cor: string; valor: number; percentual: number }
+  > = {}
 
   for (const item of resultadoItens) {
     for (const dist of item.distribuicao) {
       if (!distribuicaoPorSocio[dist.socioId]) {
         distribuicaoPorSocio[dist.socioId] = {
-          nome: socioNomes[dist.socioId] || 'Desconhecido',
+          nome: socioData[dist.socioId]?.nome || 'Desconhecido',
+          cor: socioData[dist.socioId]?.cor || '#6B7280',
           valor: 0,
+          percentual: 0,
         }
       }
       distribuicaoPorSocio[dist.socioId].valor += dist.valor
     }
+  }
+
+  // Calculate percentage for each socio based on total profit
+  for (const socioId of Object.keys(distribuicaoPorSocio)) {
+    // Round the accumulated value to 2 decimal places to match currency precision
+    distribuicaoPorSocio[socioId].valor = Math.round(distribuicaoPorSocio[socioId].valor * 100) / 100
+    const valor = distribuicaoPorSocio[socioId].valor
+    distribuicaoPorSocio[socioId].percentual =
+      lucroTotal > 0 ? (valor / lucroTotal) * 100 : 0
   }
 
   return {
@@ -417,9 +433,9 @@ export async function criarVenda(
 
       // Cria distribuições do lucro
       for (const cota of estoque.cotas) {
-        const valorDistribuicao = Number(
-          (itemLucroTotal * Number(cota.percentual)) / 100
-        )
+        const valorDistribuicao = Math.round(
+          (itemLucroTotal * Number(cota.percentual)) / 100 * 100
+        ) / 100
 
         await tx.distribuicoes_lucro.create({
           data: {
@@ -448,13 +464,13 @@ export async function criarVenda(
       lucroTotal += itemLucroTotal
     }
 
-    // Atualiza totais da venda
+    // Atualiza totais da venda (arredonda para 2 casas decimais para precisão monetária)
     await tx.vendas.update({
       where: { id: venda.id },
       data: {
-        receitaTotal,
-        custoTotal,
-        lucroTotal,
+        receitaTotal: Math.round(receitaTotal * 100) / 100,
+        custoTotal: Math.round(custoTotal * 100) / 100,
+        lucroTotal: Math.round(lucroTotal * 100) / 100,
       },
     })
 

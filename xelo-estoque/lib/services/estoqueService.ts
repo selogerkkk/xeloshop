@@ -213,6 +213,14 @@ export async function atualizarAposEntrada(
   quantidade: number,
   custoUnitario: number
 ): Promise<void> {
+  // Validate input parameters
+  if (quantidade <= 0) {
+    throw new Error('Quantidade deve ser maior que zero')
+  }
+  if (custoUnitario < 0) {
+    throw new Error('Custo unitário não pode ser negativo')
+  }
+
   const estoque = await prisma.estoques.findUnique({
     where: { id: estoqueId },
   })
@@ -247,6 +255,11 @@ export async function atualizarAposVenda(
   estoqueId: string,
   quantidade: number
 ): Promise<void> {
+  // Validate input parameter
+  if (quantidade <= 0) {
+    throw new Error('Quantidade deve ser maior que zero')
+  }
+
   const estoque = await prisma.estoques.findUnique({
     where: { id: estoqueId },
   })
@@ -279,6 +292,11 @@ export async function restaurarAposCancelamento(
   estoqueId: string,
   quantidade: number
 ): Promise<void> {
+  // Validate input parameter
+  if (quantidade <= 0) {
+    throw new Error('Quantidade deve ser maior que zero')
+  }
+
   const estoque = await prisma.estoques.findUnique({
     where: { id: estoqueId },
   })

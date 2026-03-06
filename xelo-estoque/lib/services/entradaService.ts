@@ -176,6 +176,16 @@ function validarPagamentos(
   if (sociosIds.length !== pagamentos.length) {
     throw new Error('Não pode haver pagamentos duplicados para o mesmo sócio')
   }
+
+  // Valida se os valores individuais correspondem aos percentuais
+  for (const pagamento of pagamentos) {
+    const valorEsperado = (pagamento.percentual / 100) * custoTotal
+    if (Math.abs(pagamento.valor - valorEsperado) > 0.01) {
+      throw new Error(
+        `Valor do pagamento não corresponde ao percentual informado. Sócio: ${pagamento.socioId}, Percentual: ${pagamento.percentual}%, Valor informado: ${pagamento.valor.toFixed(2)}, Valor esperado: ${valorEsperado.toFixed(2)}`
+      )
+    }
+  }
 }
 
 /**

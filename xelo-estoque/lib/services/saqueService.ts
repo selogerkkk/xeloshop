@@ -73,26 +73,50 @@ export async function criarSaque(input: CreateSaqueInput): Promise<saques> {
     throw new Error('Valor deve ser maior que zero')
   }
 
-  const socio = await prisma.socios.findUnique({
-    where: { id: input.socioId },
-  })
+  return prisma.$transaction(async (tx) => {
+    // Perform a conditional update on the socio to decrement saldoDisponivel
+    // This atomic operation ensures that the balance is only decremented if sufficient funds exist
+    const updateResult = await tx.socios.updateMany({
+      where: {
+        id: input.socioId,
+        saldoDisponivel: {
+          gte: input.valor,
+        },
+      },
+      data: {
+        saldoDisponivel: {
+          decrement: input.valor,
+        },
+      },
+    })
 
-  if (!socio) {
-    throw new Error('Sócio não encontrado')
-  }
+    // Verify the update affected exactly one row
+    // If count is 0, either the socio doesn't exist or has insufficient balance
+    if (updateResult.count === 0) {
+      // Check if socio exists to provide appropriate error message
+      const socio = await tx.socios.findUnique({
+        where: { id: input.socioId },
+        select: { id: true },
+      })
 
-  if (Number(socio.saldoDisponivel) < input.valor) {
-    throw new Error('Saldo disponível insuficiente')
-  }
+      if (!socio) {
+        throw new Error('Sócio não encontrado')
+      }
 
-  return prisma.saques.create({
-    data: {
-      id: crypto.randomUUID(),
-      socioId: input.socioId,
-      valor: input.valor,
-      motivo: input.motivo,
-      status: 'PENDENTE',
-    },
+      throw new Error('Saldo disponível insuficiente')
+    }
+
+    // Create the saque record within the same transaction
+    // Both the balance decrement and saque creation commit together, preventing concurrent overdrafts
+    return tx.saques.create({
+      data: {
+        id: crypto.randomUUID(),
+        socioId: input.socioId,
+        valor: input.valor,
+        motivo: input.motivo,
+        status: 'PENDENTE',
+      },
+    })
   })
 }
 
@@ -157,6 +181,7 @@ export async function cancelarSaque(
   id: string,
   motivo?: string
 ): Promise<saques> {
+  // First, read the current saque to build the motivo string
   const saque = await prisma.saques.findUnique({
     where: { id },
   })
@@ -165,16 +190,40 @@ export async function cancelarSaque(
     throw new Error('Saque não encontrado')
   }
 
-  if (saque.status !== 'PENDENTE' && saque.status !== 'APROVADO') {
+  // Build the motivo string before the atomic update
+  const motivoCancelado = motivo
+    ? `${saque.motivo || ''} (Cancelado: ${motivo})`
+    : saque.motivo
+
+  // Perform an atomic conditional update (CAS) - only update if status is PENDENTE or APROVADO
+  const resultado = await prisma.saques.updateMany({
+    where: {
+      id,
+      OR: [{ status: 'PENDENTE' }, { status: 'APROVADO' }],
+    },
+    data: {
+      status: 'CANCELADO',
+      motivo: motivoCancelado,
+    },
+  })
+
+  // If no rows were updated, the saque either doesn't exist or has an invalid status
+  if (resultado.count === 0) {
+    // Re-check to provide appropriate error message
+    const saqueAtualizado = await prisma.saques.findUnique({
+      where: { id },
+    })
+
+    if (!saqueAtualizado) {
+      throw new Error('Saque não encontrado')
+    }
+
     throw new Error('Apenas saques pendentes ou aprovados podem ser cancelados')
   }
 
-  return prisma.saques.update({
+  // Return the updated saque
+  return prisma.saques.findUniqueOrThrow({
     where: { id },
-    data: {
-      status: 'CANCELADO',
-      motivo: motivo ? `${saque.motivo || ''} (Cancelado: ${motivo})` : saque.motivo,
-    },
   })
 }
 

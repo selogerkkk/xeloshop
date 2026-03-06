@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface Socio {
   id: string
@@ -38,6 +38,11 @@ export function PagamentoSplit({
   const [modo, setModo] = useState<'simples' | 'avancado'>('simples')
   const [erro, setErro] = useState('')
 
+  // Use a ref to store onChange to avoid infinite loops
+  // when the parent doesn't memoize the callback
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
   // Auto-calculate in simple mode based on quotas
   useEffect(() => {
     if (modo === 'simples' && cotasAtuais && cotasAtuais.length > 0) {
@@ -46,9 +51,9 @@ export function PagamentoSplit({
         percentual: c.percentual,
         valor: (custoTotal * c.percentual) / 100,
       }))
-      onChange(pagamentos)
+      onChangeRef.current(pagamentos)
     }
-  }, [modo, cotasAtuais, custoTotal, onChange])
+  }, [modo, cotasAtuais, custoTotal])
 
   // Initialize payments based on socios when no quotas exist (new stock)
   useEffect(() => {
@@ -59,9 +64,9 @@ export function PagamentoSplit({
         percentual: percentualIgual,
         valor: (custoTotal * percentualIgual) / 100,
       }))
-      onChange(pagamentos)
+      onChangeRef.current(pagamentos)
     }
-  }, [modo, cotasAtuais, socios, custoTotal, value.length, onChange])
+  }, [modo, cotasAtuais, socios, custoTotal, value.length])
 
   const handlePercentualChange = (socioId: string, novoPercentual: number) => {
     const novoValor = (custoTotal * novoPercentual) / 100

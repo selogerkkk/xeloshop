@@ -3,7 +3,7 @@
 interface Cota {
   socioNome: string
   socioCor: string
-  percentual: number
+  percentual?: number
 }
 
 interface CotaVisualizerProps {
@@ -19,11 +19,11 @@ export function CotaVisualizer({ cotas, showLegend = true }: CotaVisualizerProps
           <div
             key={index}
             style={{
-              width: `${cota.percentual}%`,
+              width: `${cota.percentual ?? 0}%`,
               backgroundColor: cota.socioCor,
             }}
             className="h-full"
-            title={`${cota.socioNome}: ${cota.percentual.toFixed(1)}%`}
+            title={`${cota.socioNome}: ${(cota.percentual ?? 0).toFixed(1)}%`}
           />
         ))}
       </div>
@@ -36,7 +36,7 @@ export function CotaVisualizer({ cotas, showLegend = true }: CotaVisualizerProps
                 style={{ backgroundColor: cota.socioCor }}
               />
               <span className="text-gray-400">
-                {cota.socioNome} ({cota.percentual.toFixed(0)}%)
+                {cota.socioNome} ({(cota.percentual ?? 0).toFixed(0)}%)
               </span>
             </div>
           ))}

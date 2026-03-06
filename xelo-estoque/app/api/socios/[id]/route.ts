@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server'
 import { buscarSocioPorId, atualizarSocio } from '@/lib/services/socioService'
 
 interface RouteParams {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
   try {
-    const { id } = await params
+    const { id } = params
     const socio = await buscarSocioPorId(id)
 
     if (!socio) {
@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
-    const { id } = await params
+    const { id } = params
     const body = await request.json()
     const { nome, cor, ativo } = body
 
@@ -44,8 +44,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
     return NextResponse.json(socio)
   } catch (error) {
     console.error('Erro ao atualizar sócio:', error)
-    const message =
-      error instanceof Error ? error.message : 'Erro ao atualizar sócio'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Erro ao atualizar sócio' },
+      { status: 500 }
+    )
   }
 }

@@ -44,20 +44,57 @@ interface DashboardData {
 export function EmpresaDashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/dashboard/resumo')
-      .then((r) => r.json())
-      .then((data) => {
-        setData(data)
+    const fetchData = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const response = await fetch('/api/dashboard/resumo')
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const result = await response.json()
+        setData(result)
+      } catch (err) {
+        console.error('Failed to fetch dashboard data:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
+        setData(null)
+      } finally {
         setLoading(false)
-      })
+      }
+    }
+
+    fetchData()
   }, [])
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="w-8 h-8 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <p className="text-red-400 mb-2">Failed to load dashboard data</p>
+          <p className="text-gray-500 text-sm">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-gray-500">No data available</p>
       </div>
     )
   }

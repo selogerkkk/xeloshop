@@ -14,13 +14,24 @@ export async function GET(request: Request) {
       )
     }
 
-    // Valida quantidadeMinima
-    const qtdMinima = quantidadeMinima ? parseInt(quantidadeMinima, 10) : 1
-    if (!Number.isFinite(qtdMinima) || qtdMinima <= 0) {
-      return NextResponse.json(
-        { error: 'quantidadeMinima deve ser um número inteiro positivo' },
-        { status: 400 }
-      )
+    // Valida quantidadeMinima - verifica se é uma string válida de inteiro não-negativo antes de fazer parse
+    let qtdMinima = 1 // valor padrão
+
+    if (quantidadeMinima) {
+      // Verificação estrita: deve conter apenas dígitos e não estar vazio
+      if (!/^\d+$/.test(quantidadeMinima)) {
+        return NextResponse.json(
+          { error: 'quantidadeMinima deve ser um número inteiro positivo' },
+          { status: 400 }
+        )
+      }
+      qtdMinima = parseInt(quantidadeMinima, 10)
+      if (qtdMinima <= 0) {
+        return NextResponse.json(
+          { error: 'quantidadeMinima deve ser um número inteiro positivo' },
+          { status: 400 }
+        )
+      }
     }
 
     const estoques = await buscarEstoquesDisponiveis(produtoId, qtdMinima)

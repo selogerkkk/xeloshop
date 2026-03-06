@@ -22,19 +22,38 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { nome, tipo, cor } = body
-
-    if (!nome || !tipo || !cor) {
+    let body
+    try {
+      body = await request.json()
+    } catch (parseError) {
       return NextResponse.json(
-        { error: 'Nome, tipo e cor são obrigatórios' },
+        { error: 'JSON inválido no corpo da requisição' },
         { status: 400 }
       )
     }
 
-    if (tipo !== 'PESSOA' && tipo !== 'EMPRESA') {
+    const { nome, tipo, cor } = body
+
+    // Validate nome is a non-empty string
+    if (typeof nome !== 'string' || nome.trim() === '') {
       return NextResponse.json(
-        { error: 'Tipo deve ser PESSOA ou EMPRESA' },
+        { error: 'Nome é obrigatório e deve ser uma string não vazia' },
+        { status: 400 }
+      )
+    }
+
+    // Validate tipo is a string and exactly 'PESSOA' or 'EMPRESA'
+    if (typeof tipo !== 'string' || (tipo !== 'PESSOA' && tipo !== 'EMPRESA')) {
+      return NextResponse.json(
+        { error: 'Tipo é obrigatório e deve ser PESSOA ou EMPRESA' },
+        { status: 400 }
+      )
+    }
+
+    // Validate cor is a non-empty string
+    if (typeof cor !== 'string' || cor.trim() === '') {
+      return NextResponse.json(
+        { error: 'Cor é obrigatória e deve ser uma string não vazia' },
         { status: 400 }
       )
     }
