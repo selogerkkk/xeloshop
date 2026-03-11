@@ -26,6 +26,15 @@ export async function POST(request: Request, { params }: RouteParams) {
   } catch (error) {
     console.error('Erro ao cancelar venda:', error)
     const message = error instanceof Error ? error.message : 'Erro ao cancelar venda'
-    return NextResponse.json({ error: message }, { status: 400 })
+    let status = 400
+    if (message === 'Venda não encontrada') {
+      status = 404
+    } else if (
+      message === 'Venda já está cancelada' ||
+      message === 'Venda já foi cancelada por outra operação'
+    ) {
+      status = 409
+    }
+    return NextResponse.json({ error: message }, { status })
   }
 }

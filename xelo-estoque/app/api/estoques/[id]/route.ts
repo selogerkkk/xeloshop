@@ -100,6 +100,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     console.error('Erro ao excluir estoque:', error)
     const message =
       error instanceof Error ? error.message : 'Erro ao excluir estoque'
-    return NextResponse.json({ error: message }, { status: 400 })
+    const status = message === 'Estoque não encontrado' ? 404 : 400
+    return NextResponse.json({ error: message }, { status })
   }
 }
