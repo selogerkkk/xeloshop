@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ViewToggle } from './ViewToggle'
 import { EmpresaDashboard } from './EmpresaDashboard'
 import { SocioDashboard } from './SocioDashboard'
 import { VendaForm } from '../VendaForm'
 import { EntradaForm } from '../entradas/EntradaForm'
 import { useSocios, useProdutos } from '@/hooks/use-dashboard'
+import { usePrefetchOnMount, usePrefetchOnHover } from '@/hooks/use-prefetch'
 import { queryClient } from '@/lib/query-client'
 import type { Socio, Produto } from '@/types'
 
@@ -25,6 +26,12 @@ export function DashboardShell({ initialSocios, initialProdutos }: DashboardShel
 
   const { data: socios = initialSocios } = useSocios()
   const { data: produtos = initialProdutos } = useProdutos()
+
+  // Prefetch em background após carregar
+  usePrefetchOnMount(selectedSocioId)
+
+  // Prefetch on hover
+  const { prefetchDashboard, prefetchVenda, prefetchEntrada } = usePrefetchOnHover()
 
   // Seleciona primeiro sócio não-empresa por padrão
   if (socios.length > 0 && !selectedSocioId) {
@@ -52,6 +59,7 @@ export function DashboardShell({ initialSocios, initialProdutos }: DashboardShel
           <div className="flex gap-2 overflow-x-auto">
             <button
               onClick={() => setActiveTab('dashboard')}
+              onMouseEnter={prefetchDashboard}
               className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all rounded ${
                 activeTab === 'dashboard'
                   ? 'bg-emerald-500/20 text-emerald-400'
@@ -62,6 +70,7 @@ export function DashboardShell({ initialSocios, initialProdutos }: DashboardShel
             </button>
             <button
               onClick={() => setActiveTab('nova-venda')}
+              onMouseEnter={prefetchVenda}
               className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all rounded ${
                 activeTab === 'nova-venda'
                   ? 'bg-emerald-500/20 text-emerald-400'
@@ -72,6 +81,7 @@ export function DashboardShell({ initialSocios, initialProdutos }: DashboardShel
             </button>
             <button
               onClick={() => setActiveTab('entrada-estoque')}
+              onMouseEnter={prefetchEntrada}
               className={`px-6 py-3 font-medium text-sm whitespace-nowrap transition-all rounded ${
                 activeTab === 'entrada-estoque'
                   ? 'bg-emerald-500/20 text-emerald-400'
