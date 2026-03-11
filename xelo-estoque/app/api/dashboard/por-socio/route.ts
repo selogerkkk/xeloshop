@@ -140,7 +140,7 @@ export async function GET(request: Request) {
       },
       dividas: {
         total: totalDividas,
-        items: socio.dividas_ajuste.map((d: DividaComValorPendente) => ({
+        items: socio.dividas_ajuste.map((d) => ({
           id: d.id,
           valorOriginal: Number(d.valorOriginal),
           valorPendente: Number(d.valorPendente),

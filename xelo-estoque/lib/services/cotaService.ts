@@ -1,11 +1,8 @@
 import { prisma } from '@/lib/prisma'
-import type { cotas, PrismaClient } from '@prisma/client'
-import type { DefaultArgs } from '@prisma/client/runtime/library'
+import type { Prisma, cotas } from '@prisma/client'
 
-type TransactionClient = Omit<
-  PrismaClient<DefaultArgs, never, DefaultArgs>,
-  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
->
+// Use Prisma's built-in TransactionClient type
+type TransactionClient = Prisma.TransactionClient
 
 export interface CreateCotaInput {
   estoqueId: string

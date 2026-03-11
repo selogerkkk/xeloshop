@@ -1,11 +1,8 @@
 import { prisma } from '@/lib/prisma'
-import type { TipoSocio, socios, PrismaClient } from '@prisma/client'
-import type { DefaultArgs } from '@prisma/client/runtime/library'
+import type { Prisma, TipoSocio, socios } from '@prisma/client'
 
-type TransactionClient = Omit<
-  PrismaClient<DefaultArgs, never, DefaultArgs>,
-  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
->
+// Use Prisma's built-in TransactionClient type
+type TransactionClient = Prisma.TransactionClient
 
 export interface CreateSocioInput {
   nome: string

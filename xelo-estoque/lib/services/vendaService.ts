@@ -235,7 +235,7 @@ export async function previewDistribuicao(
   let lucroTotal = 0
 
   // Collect all estoqueIds to fetch in a single query (avoids N+1)
-  const estoqueIds = [...new Set(itens.map((item) => item.estoqueId))]
+  const estoqueIds = Array.from(new Set(itens.map((item) => item.estoqueId)))
 
   // Fetch all estoques with their data in one query
   const estoques = await prisma.estoques.findMany({

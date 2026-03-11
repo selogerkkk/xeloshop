@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { listarVendas, criarVenda, previewDistribuicao } from '@/lib/services/vendaService'
 import type { StatusVenda } from '@prisma/client'
 
-const STATUS_VALIDOS: StatusVenda[] = ['CONCLUIDA', 'CANCELADA', 'PENDENTE']
+const STATUS_VALIDOS: StatusVenda[] = ['CONCLUIDA', 'CANCELADA']
 
 export async function GET(request: Request) {
   try {
