@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 
 export async function GET(request: Request) {
   try {
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => null)
 
-    if (!body || typeof body !== 'object') {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return NextResponse.json({ error: 'Payload inválido' }, { status: 400 })
     }
 
@@ -74,6 +75,13 @@ export async function POST(request: Request) {
     return NextResponse.json(produto, { status: 201 })
   } catch (error) {
     console.error('Erro ao criar produto:', error)
+    // Trata erro de SKU duplicado (unique constraint)
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const target = error.meta?.target as string[] | undefined
+      if (target?.includes('sku')) {
+        return NextResponse.json({ error: 'SKU already exists' }, { status: 409 })
+      }
+    }
     // Não expõe detalhes internos do erro
     return NextResponse.json({ error: 'Erro ao criar produto' }, { status: 500 })
   }

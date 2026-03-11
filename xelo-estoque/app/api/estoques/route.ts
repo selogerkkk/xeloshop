@@ -5,7 +5,7 @@ import {
   type CreateEstoqueInput,
 } from '@/lib/services/estoqueService'
 
-// Valid TipoEstoque values from the Prisma schema
+// Valid TipoEstoque values from the Prisma enum
 const VALID_TIPO_VALUES = ['INDIVIDUAL', 'POOL'] as const
 type TipoEstoque = typeof VALID_TIPO_VALUES[number]
 
