@@ -69,7 +69,7 @@ export async function GET(request: Request) {
       prisma.socios.count({ where: { ativo: true } }),
     ])
 
-    // Resumo por sócio
+    // Resumo por sócio (limitado a 50)
     const socios = await prisma.socios.findMany({
       where: { ativo: true },
       select: {
@@ -82,6 +82,7 @@ export async function GET(request: Request) {
         totalRecebido: true,
         totalSacado: true,
       },
+      take: 50,
     })
 
     const resumoPorSocio = socios.map((s) => ({
@@ -95,7 +96,7 @@ export async function GET(request: Request) {
       totalSacado: Number(s.totalSacado),
     }))
 
-    // Resumo de estoques
+    // Resumo de estoques (limitado a 50)
     const estoques = await prisma.estoques.findMany({
       where: { ativo: true },
       include: {
@@ -110,6 +111,7 @@ export async function GET(request: Request) {
           },
         },
       },
+      take: 50,
     })
 
     const resumoEstoques = estoques.map((e: EstoqueComRelacoes) => ({

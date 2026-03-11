@@ -53,9 +53,15 @@ export async function GET(request: Request) {
       )
     }
 
-    // Busca TODAS as distribuições, já ordenadas (otimização: uma query única)
+    // Busca distribuições dos últimos 365 dias (limitado a 1000)
+    const dataLimite = new Date()
+    dataLimite.setDate(dataLimite.getDate() - 365)
+
     const todasDistribuicoes = await prisma.distribuicoes_lucro.findMany({
-      where: { socioId },
+      where: {
+        socioId,
+        dataDistribuicao: { gte: dataLimite }
+      },
       orderBy: { dataDistribuicao: 'desc' },
       select: {
         id: true,
@@ -63,6 +69,7 @@ export async function GET(request: Request) {
         status: true,
         dataDistribuicao: true,
       },
+      take: 1000,
     })
 
     // O histórico são as 50 primeiras da lista completa
