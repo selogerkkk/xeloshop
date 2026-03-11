@@ -1,22 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ViewToggle } from '@/components/dashboard/ViewToggle'
 import { SocioDashboard } from '@/components/dashboard/SocioDashboard'
 import { EmpresaDashboard } from '@/components/dashboard/EmpresaDashboard'
 import { VendaForm } from '@/components/VendaForm'
 import { EntradaForm } from '@/components/entradas/EntradaForm'
-
-interface Socio {
-  id: string
-  nome: string
-  cor: string
-}
-
-interface Produto {
-  id: string
-  nome: string
-}
+import { useSocios, useProdutos } from '@/hooks/use-dashboard'
+import { queryClient } from '@/lib/query-client'
 
 type DashboardView = 'socio' | 'empresa'
 type ActiveTab = 'dashboard' | 'nova-venda' | 'entrada-estoque'
@@ -25,50 +16,32 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard')
   const [dashboardView, setDashboardView] = useState<DashboardView>('empresa')
   const [selectedSocioId, setSelectedSocioId] = useState<string>('')
-  const [socios, setSocios] = useState<Socio[]>([])
-  const [produtos, setProdutos] = useState<Produto[]>([])
-  const [loading, setLoading] = useState(true)
 
-  const fetchData = async () => {
-    try {
-      const [sociosRes, produtosRes] = await Promise.all([
-        fetch('/api/socios'),
-        fetch('/api/produtos?ativo=true'),
-      ])
+  const { data: socios = [], isLoading: loadingSocios } = useSocios()
+  const { data: produtos = [], isLoading: loadingProdutos } = useProdutos()
 
-      const sociosData = await sociosRes.json()
-      const produtosData = await produtosRes.json()
-
-      setSocios(Array.isArray(sociosData) ? sociosData : [])
-      setProdutos(Array.isArray(produtosData) ? produtosData : [])
-
-      // Seleciona primeiro sócio não-empresa por padrão
-      if (sociosData.length > 0 && !selectedSocioId) {
-        const primeiroSocio = sociosData.find((s: Socio) => s.nome !== 'Empresa') || sociosData[0]
-        setSelectedSocioId(primeiroSocio.id)
-      }
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error)
-    } finally {
-      setLoading(false)
+  // Seleciona primeiro sócio não-empresa por padrão
+  if (socios.length > 0 && !selectedSocioId) {
+    const primeiroSocio = socios.find((s: any) => s.nome !== 'Empresa') || socios[0]
+    if (primeiroSocio) {
+      setSelectedSocioId(primeiroSocio.id)
     }
   }
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
   const handleVendaSuccess = () => {
-    fetchData()
+    // Invalida o cache para recarregar dados
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     setActiveTab('dashboard')
   }
 
   const handleEntradaSuccess = () => {
-    fetchData()
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     setActiveTab('dashboard')
   }
 
-  if (loading) {
+  const isLoading = loadingSocios || loadingProdutos
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
@@ -139,7 +112,7 @@ export default function Home() {
                   Visualizando como:
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {socios.map((socio) => (
+                  {socios.map((socio: any) => (
                     <button
                       key={socio.id}
                       onClick={() => setSelectedSocioId(socio.id)}

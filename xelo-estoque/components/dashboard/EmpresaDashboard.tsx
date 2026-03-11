@@ -1,78 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-
-interface DashboardData {
-  geral: {
-    estoquesAtivos: number
-    sociosAtivos: number
-    vendas: {
-      totalVendas: number
-      receitaTotal: number
-      custoTotal: number
-      lucroTotal: number
-      porCanal: Record<string, { receita: number; lucro: number }>
-    }
-    entradas: {
-      totalEntradas: number
-      totalInvestido: number
-    }
-  }
-  socios: {
-    id: string
-    nome: string
-    cor: string
-    saldoDisponivel: number
-    saldoPendente: number
-    totalInvestido: number
-  }[]
-  estoques: {
-    id: string
-    nome: string
-    tipo: string
-    produtoNome: string
-    quantidadeDisponivel: number
-    valorTotalInvestido: number
-    cotas: {
-      socioNome: string
-      socioCor: string
-      percentual: number
-    }[]
-  }[]
-}
+import { useDashboardResumo } from '@/hooks/use-dashboard'
+import { CotaVisualizer } from '../estoques/CotaVisualizer'
 
 export function EmpresaDashboard() {
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, isLoading, error } = useDashboardResumo()
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetch('/api/dashboard/resumo')
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const result = await response.json()
-        setData(result)
-      } catch (err) {
-        console.error('Failed to fetch dashboard data:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
-        setData(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="w-8 h-8 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
@@ -84,8 +18,8 @@ export function EmpresaDashboard() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <p className="text-red-400 mb-2">Failed to load dashboard data</p>
-          <p className="text-gray-500 text-sm">{error}</p>
+          <p className="text-red-400 mb-2">Erro ao carregar dashboard</p>
+          <p className="text-gray-500 text-sm">{error.message}</p>
         </div>
       </div>
     )
@@ -94,7 +28,7 @@ export function EmpresaDashboard() {
   if (!data) {
     return (
       <div className="flex items-center justify-center py-12">
-        <p className="text-gray-500">No data available</p>
+        <p className="text-gray-500">Nenhum dado disponível</p>
       </div>
     )
   }
@@ -132,7 +66,7 @@ export function EmpresaDashboard() {
         <div className="glass-card p-4">
           <h3 className="text-lg font-medium text-white mb-4">Saldos por Sócio</h3>
           <div className="space-y-3">
-            {socios.map((socio) => (
+            {socios.map((socio: any) => (
               <div
                 key={socio.id}
                 className="flex items-center justify-between p-3 bg-black/20 rounded"
@@ -161,7 +95,7 @@ export function EmpresaDashboard() {
         <div className="glass-card p-4">
           <h3 className="text-lg font-medium text-white mb-4">Vendas por Canal</h3>
           <div className="space-y-3">
-            {Object.entries(geral.vendas.porCanal).map(([canal, dados]) => (
+            {Object.entries(geral.vendas.porCanal).map(([canal, dados]: [string, any]) => (
               <div
                 key={canal}
                 className="flex items-center justify-between p-3 bg-black/20 rounded"
@@ -196,7 +130,7 @@ export function EmpresaDashboard() {
               </tr>
             </thead>
             <tbody>
-              {estoques.map((e) => (
+              {estoques.map((e: any) => (
                 <tr key={e.id}>
                   <td className="text-white">{e.nome}</td>
                   <td>
