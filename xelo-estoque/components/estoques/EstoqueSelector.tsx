@@ -62,7 +62,12 @@ export function EstoqueSelector({
         if (!Array.isArray(data)) {
           throw new Error('Resposta inválida da API')
         }
-        setEstoques(data)
+        // Normalize Decimal values from Prisma (converts strings to numbers)
+        const normalizedData = data.map((estoque) => ({
+          ...estoque,
+          custoMedio: typeof estoque.custoMedio === 'string' ? parseFloat(estoque.custoMedio) : Number(estoque.custoMedio) || 0,
+        }))
+        setEstoques(normalizedData)
       })
       .catch((error) => {
         if (error.name !== 'AbortError') {
@@ -82,14 +87,20 @@ export function EstoqueSelector({
 
   // Efeito 2: Auto-seleção quando estoques carregam ou selectedId muda
   useEffect(() => {
+    // Clear selection if estoques is empty
+    if (estoques.length === 0) {
+      onSelectRef.current(null)
+      return
+    }
+
     // Clear selection if selectedId is not present in the refreshed estoques list
-    if (selectedId && estoques.length > 0 && !estoques.some((e) => e.id === selectedId)) {
+    if (selectedId && !estoques.some((e) => e.id === selectedId)) {
       onSelectRef.current(null)
       return
     }
 
     // Auto-select oldest (first in list) se nenhum estiver selecionado
-    if (estoques.length > 0 && !selectedId) {
+    if (!selectedId) {
       onSelectRef.current(estoques[0].id)
     }
   }, [estoques, selectedId])
