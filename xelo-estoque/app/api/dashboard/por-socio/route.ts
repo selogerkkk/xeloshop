@@ -1,13 +1,18 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import type { distribuicoes_lucro, dividas_ajuste, saques } from '@prisma/client'
+import type { saques } from '@prisma/client'
 
-interface DistribuicaoComValor extends distribuicoes_lucro {
-  valor: number
-}
-
-interface DividaComValorPendente extends dividas_ajuste {
+// Custom types that don't extend Prisma models to avoid Decimal/number conflicts
+type DividaComValorPendente = {
+  id: string
+  socioId: string
+  valorOriginal: number
   valorPendente: number
+  motivo: string
+  referenciaId: string | null
+  status: string
+  dataCriacao: Date
+  dataQuitacao: Date | null
 }
 
 export async function GET(request: Request) {
