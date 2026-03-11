@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { EstoqueSelector } from './estoques/EstoqueSelector'
+import { DistribuicaoPreview } from './vendas/DistribuicaoPreview'
 
 interface Produto {
   id: string
   nome: string
-  quantidade: number
-  precoVenda: string
 }
 
 interface VendaFormProps {
@@ -14,27 +14,87 @@ interface VendaFormProps {
   onSuccess: () => void
 }
 
+interface PreviewData {
+  receitaTotal: number
+  custoTotal: number
+  lucroTotal: number
+  distribuicaoPorSocio: Record<string, { nome: string; valor: number; cor: string; percentual: number }>
+}
+
 export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
   const [loading, setLoading] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [preview, setPreview] = useState<PreviewData | null>(null)
+
+  // Helper to get local date string in YYYY-MM-DD format
+  const getLocalDateString = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   const [form, setForm] = useState({
     produtoId: '',
+    estoqueId: '',
     quantidade: '1',
     canal: 'ML',
-    precoReal: '',
-    dataVenda: new Date().toISOString().split('T')[0]
+    precoUnitario: '',
+    dataVenda: getLocalDateString(),
   })
 
-  const produtoSelecionado = produtos.find(p => p.id === form.produtoId)
+  const produtoSelecionado = produtos.find((p) => p.id === form.produtoId)
+
+  // Fetch preview when form changes
+  useEffect(() => {
+    if (!form.estoqueId || !form.quantidade || !form.precoUnitario) {
+      setPreview(null)
+      return
+    }
+
+    const qtd = parseInt(form.quantidade)
+    const preco = parseFloat(form.precoUnitario)
+
+    if (qtd <= 0 || preco <= 0) {
+      setPreview(null)
+      return
+    }
+
+    setPreviewLoading(true)
+    fetch('/api/vendas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        canal: form.canal,
+        itens: [
+          {
+            estoqueId: form.estoqueId,
+            quantidade: qtd,
+            precoUnitario: preco,
+          },
+        ],
+        dataVenda: form.dataVenda,
+        preview: true,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.resumo) {
+          setPreview({
+            receitaTotal: data.resumo.receitaTotal,
+            custoTotal: data.resumo.custoTotal,
+            lucroTotal: data.resumo.lucroTotal,
+            distribuicaoPorSocio: data.resumo.distribuicaoPorSocio,
+          })
+        }
+      })
+      .finally(() => setPreviewLoading(false))
+  }, [form.estoqueId, form.quantidade, form.precoUnitario, form.canal, form.dataVenda])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!produtoSelecionado) return
-
-    const qtd = Number.parseInt(form.quantidade)
-    if (qtd > produtoSelecionado.quantidade) {
-      alert(`Insufficient stock! Available: ${produtoSelecionado.quantidade}`)
-      return
-    }
+    if (!form.estoqueId) return
 
     setLoading(true)
 
@@ -43,24 +103,36 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          produtoId: form.produtoId,
-          quantidade: qtd,
           canal: form.canal,
-          precoReal: Number.parseFloat(form.precoReal),
-          dataVenda: form.dataVenda
-        })
+          itens: [
+            {
+              estoqueId: form.estoqueId,
+              quantidade: parseInt(form.quantidade),
+              precoUnitario: parseFloat(form.precoUnitario),
+            },
+          ],
+          dataVenda: form.dataVenda,
+        }),
       })
 
       if (response.ok) {
-        setForm({ produtoId: '', quantidade: '1', canal: 'ML', precoReal: '', dataVenda: new Date().toISOString().split('T')[0] })
+        setForm({
+          produtoId: '',
+          estoqueId: '',
+          quantidade: '1',
+          canal: 'ML',
+          precoUnitario: '',
+          dataVenda: getLocalDateString(),
+        })
+        setPreview(null)
         onSuccess()
-        alert('Trade executed successfully!')
+        alert('Venda registrada com sucesso!')
       } else {
         const err = await response.json()
-        alert(err.error || 'Error executing trade')
+        alert(err.error || 'Erro ao registrar venda')
       }
     } catch (error) {
-      alert('Error executing trade')
+      alert('Erro ao registrar venda')
     } finally {
       setLoading(false)
     }
@@ -72,144 +144,164 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
         <div className="text-center py-8">
           <div className="text-4xl mb-3">⚠️</div>
           <p className="text-yellow-400">
-            No available products to sell. Add products first.
+            Nenhum produto disponível para venda.
           </p>
         </div>
       </div>
     )
   }
 
+  // Convert preview data to array for component
+  const distribuicaoArray = preview
+    ? Object.entries(preview.distribuicaoPorSocio).map(([id, data]) => ({
+        socioId: id,
+        socioNome: data.nome,
+        socioCor: data.cor,
+        percentual: data.percentual,
+        valor: data.valor,
+      }))
+    : []
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-emerald-400">Execute Trade</h2>
-          <p className="text-sm text-gray-500">Register a new sale transaction</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs text-emerald-500 font-mono">LIVE</span>
+          <h2 className="text-xl font-bold text-emerald-400">Registrar Venda</h2>
+          <p className="text-sm text-gray-500">Selecione o produto e o estoque</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <label htmlFor="produtoId" className="text-xs uppercase tracking-wider text-gray-400">Position</label>
-          <select
-            id="produtoId"
-            required
-            value={form.produtoId}
-            onChange={e => {
-              const p = produtos.find(p => p.id === e.target.value)
-              setForm({
-                ...form,
-                produtoId: e.target.value,
-                precoReal: p ? p.precoVenda : ''
-              })
-            }}
-            className="input-futuristic"
-          >
-            <option value="">Select position...</option>
-            {produtos.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.nome.toUpperCase()} (Qty: {p.quantidade})
-              </option>
-            ))}
-          </select>
-        </div>
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column - Form */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs uppercase tracking-wider text-gray-400">Produto</label>
+            <select
+              required
+              value={form.produtoId}
+              onChange={(e) =>
+                setForm({ ...form, produtoId: e.target.value, estoqueId: '' })
+              }
+              className="input-futuristic w-full"
+            >
+              <option value="">Selecione um produto...</option>
+              {produtos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="space-y-2">
-          <label htmlFor="canal" className="text-xs uppercase tracking-wider text-gray-400">Sales Channel</label>
-          <select
-            id="canal"
-            required
-            value={form.canal}
-            onChange={e => setForm({ ...form, canal: e.target.value })}
-            className="input-futuristic"
-          >
-            <option value="ML">Mercado Livre</option>
-            <option value="Facebook">Facebook</option>
-            <option value="Instagram">Instagram</option>
-            <option value="WhatsApp">WhatsApp</option>
-            <option value="Outro">Other</option>
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="dataVenda" className="text-xs uppercase tracking-wider text-gray-400">Sale Date</label>
-          <input
-            id="dataVenda"
-            type="date"
-            required
-            value={form.dataVenda}
-            onChange={e => setForm({ ...form, dataVenda: e.target.value })}
-            className="input-futuristic font-mono"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="quantidade" className="text-xs uppercase tracking-wider text-gray-400">Quantity</label>
-          <input
-            id="quantidade"
-            type="number"
-            min="1"
-            max={produtoSelecionado?.quantidade || 1}
-            required
-            value={form.quantidade}
-            onChange={e => setForm({ ...form, quantidade: e.target.value })}
-            className="input-futuristic"
-          />
-          {produtoSelecionado && (
-            <p className="text-[10px] text-gray-500">
-              Available: {produtoSelecionado.quantidade} units
-            </p>
+          {form.produtoId && (
+            <EstoqueSelector
+              produtoId={form.produtoId}
+              quantidadeDesejada={parseInt(form.quantidade) || 1}
+              onSelect={(id) => setForm({ ...form, estoqueId: id ?? '' })}
+              selectedId={form.estoqueId}
+            />
           )}
-        </div>
 
-        <div className="space-y-2">
-          <label htmlFor="precoReal" className="text-xs uppercase tracking-wider text-gray-400">Execution Price (R$)</label>
-          <input
-            id="precoReal"
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            value={form.precoReal}
-            onChange={e => setForm({ ...form, precoReal: e.target.value })}
-            className="input-futuristic font-mono"
-            placeholder="0.00"
-          />
-          {produtoSelecionado && (
-            <p className="text-[10px] text-gray-500">
-              Target: R$ {Number.parseFloat(produtoSelecionado.precoVenda).toFixed(2)}
-            </p>
-          )}
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs uppercase tracking-wider text-gray-400">Canal</label>
+              <select
+                required
+                value={form.canal}
+                onChange={(e) => setForm({ ...form, canal: e.target.value })}
+                className="input-futuristic w-full"
+              >
+                <option value="ML">Mercado Livre</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Instagram">Instagram</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
 
-        {produtoSelecionado && (
-          <div className="md:col-span-2 glass-card p-4 bg-emerald-950/20">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-400">Estimated Total</span>
-              <span className="font-mono font-bold text-emerald-400">
-                R$ {(Number.parseFloat(form.precoReal) * Number.parseInt(form.quantidade) || 0).toFixed(2)}
-              </span>
+            <div className="space-y-2">
+              <label className="text-xs uppercase tracking-wider text-gray-400">Data</label>
+              <input
+                type="date"
+                required
+                value={form.dataVenda}
+                onChange={(e) => setForm({ ...form, dataVenda: e.target.value })}
+                className="input-futuristic w-full font-mono"
+              />
             </div>
           </div>
-        )}
 
-        <div className="md:col-span-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs uppercase tracking-wider text-gray-400">Quantidade</label>
+              <input
+                type="number"
+                min="1"
+                required
+                value={form.quantidade}
+                onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
+                className="input-futuristic w-full"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs uppercase tracking-wider text-gray-400">
+                Preço Unitário (R$)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                value={form.precoUnitario}
+                onChange={(e) => setForm({ ...form, precoUnitario: e.target.value })}
+                className="input-futuristic w-full font-mono"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
           <button
             type="submit"
-            disabled={loading || !form.produtoId}
+            disabled={loading || !form.estoqueId}
             className="btn-primary w-full py-3 text-lg"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Processing...
+                Processando...
               </span>
-            ) : 'Execute Trade'}
+            ) : (
+              'Confirmar Venda'
+            )}
           </button>
+        </div>
+
+        {/* Right Column - Preview */}
+        <div>
+          {previewLoading && (
+            <div className="glass-card p-8 text-center">
+              <div className="w-8 h-8 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-sm text-gray-500">Calculando distribuição...</p>
+            </div>
+          )}
+
+          {preview && !previewLoading && (
+            <DistribuicaoPreview
+              receitaTotal={preview.receitaTotal}
+              custoTotal={preview.custoTotal}
+              lucroTotal={preview.lucroTotal}
+              distribuicao={distribuicaoArray}
+            />
+          )}
+
+          {!preview && !previewLoading && (
+            <div className="glass-card p-8 text-center border-dashed border-2 border-gray-700">
+              <p className="text-gray-500 text-sm">
+                Preencha os dados para ver a preview da distribuição
+              </p>
+            </div>
+          )}
         </div>
       </form>
     </div>

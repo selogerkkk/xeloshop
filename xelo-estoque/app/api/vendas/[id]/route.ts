@@ -1,38 +1,30 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { buscarVendaPorId } from '@/lib/services/vendaService'
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+interface RouteParams {
+  params: Promise<{
+    id: string
+  }>
+}
+
+export async function GET(request: Request, { params }: RouteParams) {
   try {
-    // Busca a venda primeiro pra saber a quantidade
-    const venda = await prisma.venda.findUnique({
-      where: { id: params.id }
-    })
+    const { id } = await params
+    const venda = await buscarVendaPorId(id)
 
     if (!venda) {
-      return NextResponse.json({ error: 'Venda não encontrada' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Venda não encontrada' },
+        { status: 404 }
+      )
     }
 
-    // Apaga a venda e devolve a quantidade ao estoque em transação
-    await prisma.$transaction([
-      prisma.venda.delete({
-        where: { id: params.id }
-      }),
-      prisma.produto.update({
-        where: { id: venda.produtoId },
-        data: {
-          quantidade: {
-            increment: venda.quantidade
-          }
-        }
-      })
-    ])
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json(venda)
   } catch (error) {
-    console.error('Erro ao excluir venda:', error)
-    return NextResponse.json({ error: 'Erro ao excluir venda' }, { status: 500 })
+    console.error('Erro ao buscar venda:', error)
+    return NextResponse.json(
+      { error: 'Erro ao buscar venda' },
+      { status: 500 }
+    )
   }
 }

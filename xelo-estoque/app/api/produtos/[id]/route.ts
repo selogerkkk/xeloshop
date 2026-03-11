@@ -11,7 +11,7 @@ export async function PATCH(
     
     console.log('PATCH produto:', params.id, 'ativo:', ativo)
 
-    const produto = await prisma.produto.update({
+    const produto = await prisma.produtos.update({
       where: { id: params.id },
       data: { ativo }
     })

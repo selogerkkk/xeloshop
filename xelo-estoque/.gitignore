@@ -34,4 +34,4 @@ prisma/migrations/
 .claude_settings.json
 .worktrees/
 .security-key
-logs/security/
+logs/security/.worktrees/
