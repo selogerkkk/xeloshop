@@ -68,12 +68,25 @@ export function PagamentoSplit({
     }
   }, [modo, cotasAtuais, socios, custoTotal, value.length])
 
+  // Update payment values when custoTotal changes (preserving percentuais)
+  useEffect(() => {
+    if (modo === 'simples' && value.length > 0 && (!cotasAtuais || cotasAtuais.length === 0)) {
+      const pagamentosAtualizados = value.map((p) => ({
+        ...p,
+        valor: (custoTotal * p.percentual) / 100,
+      }))
+      onChangeRef.current(pagamentosAtualizados)
+    }
+  }, [custoTotal, modo, cotasAtuais, value])
+
   const handlePercentualChange = (socioId: string, novoPercentual: number) => {
-    const novoValor = (custoTotal * novoPercentual) / 100
+    // Clamp value between 0 and 100
+    const clampedPercentual = Math.max(0, Math.min(100, novoPercentual))
+    const novoValor = (custoTotal * clampedPercentual) / 100
 
     const pagamentosAtualizados = value.map((p) =>
       p.socioId === socioId
-        ? { ...p, percentual: novoPercentual, valor: novoValor }
+        ? { ...p, percentual: clampedPercentual, valor: novoValor }
         : p
     )
 
@@ -101,6 +114,8 @@ export function PagamentoSplit({
           <button
             type="button"
             onClick={() => setModo('simples')}
+            aria-pressed={modo === 'simples'}
+            aria-label="Modo de divisão simples"
             className={`px-3 py-1 text-xs rounded transition-all ${
               modo === 'simples'
                 ? 'bg-emerald-500/20 text-emerald-400'
@@ -112,6 +127,8 @@ export function PagamentoSplit({
           <button
             type="button"
             onClick={() => setModo('avancado')}
+            aria-pressed={modo === 'avancado'}
+            aria-label="Modo de divisão avançado"
             className={`px-3 py-1 text-xs rounded transition-all ${
               modo === 'avancado'
                 ? 'bg-emerald-500/20 text-emerald-400'
