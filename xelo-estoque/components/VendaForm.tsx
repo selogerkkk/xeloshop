@@ -18,7 +18,7 @@ interface PreviewData {
   receitaTotal: number
   custoTotal: number
   lucroTotal: number
-  distribuicaoPorSocio: Record<string, { nome: string; valor: number }>
+  distribuicaoPorSocio: Record<string, { nome: string; valor: number; cor: string; percentual: number }>
 }
 
 export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
@@ -26,13 +26,22 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
   const [previewLoading, setPreviewLoading] = useState(false)
   const [preview, setPreview] = useState<PreviewData | null>(null)
 
+  // Helper to get local date string in YYYY-MM-DD format
+  const getLocalDateString = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   const [form, setForm] = useState({
     produtoId: '',
     estoqueId: '',
     quantidade: '1',
     canal: 'ML',
     precoUnitario: '',
-    dataVenda: new Date().toISOString().split('T')[0],
+    dataVenda: getLocalDateString(),
   })
 
   const produtoSelecionado = produtos.find((p) => p.id === form.produtoId)
@@ -113,7 +122,7 @@ export function VendaForm({ produtos, onSuccess }: VendaFormProps) {
           quantidade: '1',
           canal: 'ML',
           precoUnitario: '',
-          dataVenda: new Date().toISOString().split('T')[0],
+          dataVenda: getLocalDateString(),
         })
         setPreview(null)
         onSuccess()
