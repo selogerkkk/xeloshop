@@ -1,9 +1,51 @@
 import { PrismaClient, TipoSocio } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Iniciando seed...')
+
+  // Criar usuários para login (senha: 'password')
+  const passwordHash = await bcrypt.hash('password', 10)
+
+  const usuarios = await Promise.all([
+    prisma.usuarios.upsert({
+      where: { email: 'nato@xeloshop.com' },
+      update: {},
+      create: {
+        email: 'nato@xeloshop.com',
+        passwordHash,
+        nome: 'Nato',
+        ativo: true,
+      },
+    }),
+    prisma.usuarios.upsert({
+      where: { email: 'ruan@xeloshop.com' },
+      update: {},
+      create: {
+        email: 'ruan@xeloshop.com',
+        passwordHash,
+        nome: 'Ruan',
+        ativo: true,
+      },
+    }),
+    prisma.usuarios.upsert({
+      where: { email: 'empresa@xeloshop.com' },
+      update: {},
+      create: {
+        email: 'empresa@xeloshop.com',
+        passwordHash,
+        nome: 'Empresa',
+        ativo: true,
+      },
+    }),
+  ])
+
+  console.log(`✅ Criados ${usuarios.length} usuários:`)
+  for (const u of usuarios) {
+    console.log(`   - ${u.nome} (${u.email})`)
+  }
 
   // Criar sócios iniciais: Nato, Ruan e Empresa
   const socios = await Promise.all([
