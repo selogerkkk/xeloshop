@@ -2,7 +2,6 @@ import { prisma } from '@/lib/prisma'
 import type { TipoEntrada, entradas } from '@prisma/client'
 import { atualizarAposEntrada } from './estoqueService'
 import { recalcularCotasAposEntrada, calcularPercentuaisDosPagamentos } from './cotaService'
-import { adicionarInvestimento } from './socioService'
 
 export interface PagamentoInput {
   socioId: string

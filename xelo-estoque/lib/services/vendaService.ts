@@ -234,21 +234,30 @@ export async function previewDistribuicao(
   let custoTotal = 0
   let lucroTotal = 0
 
-  // Build socio data map from already-fetched estoque data (avoids N+1 query)
+  // Collect all estoqueIds to fetch in a single query (avoids N+1)
+  const estoqueIds = [...new Set(itens.map((item) => item.estoqueId))]
+
+  // Fetch all estoques with their data in one query
+  const estoques = await prisma.estoques.findMany({
+    where: { id: { in: estoqueIds } },
+    include: {
+      produtos: true,
+      cotas: {
+        include: {
+          socios: true,
+        },
+      },
+    },
+  })
+
+  // Build lookup map for O(1) access
+  const estoqueMap = new Map(estoques.map((e) => [e.id, e]))
+
+  // Build socio data map from already-fetched data
   const socioData: Record<string, { nome: string; cor: string }> = {}
 
   for (const item of itens) {
-    const estoque = await prisma.estoques.findUnique({
-      where: { id: item.estoqueId },
-      include: {
-        produtos: true,
-        cotas: {
-          include: {
-            socios: true,
-          },
-        },
-      },
-    })
+    const estoque = estoqueMap.get(item.estoqueId)
 
     if (!estoque) {
       throw new Error(`Estoque ${item.estoqueId} não encontrado`)
@@ -504,9 +513,6 @@ export async function cancelarVenda(
     if (venda.status === 'CANCELADA') {
       throw new Error('Venda já está cancelada')
     }
-
-    // Store current status for CAS
-    const currentStatus = venda.status
 
     // 1. Restaura quantidade dos estoques
     for (const item of venda.venda_itens) {

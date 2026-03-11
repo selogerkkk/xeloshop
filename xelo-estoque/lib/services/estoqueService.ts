@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { TipoEstoque, estoques } from '@prisma/client'
+import type { Prisma, TipoEstoque, estoques } from '@prisma/client'
 
 export interface CreateEstoqueInput {
   produtoId: string
@@ -253,14 +253,17 @@ export async function atualizarAposEntrada(
  */
 export async function atualizarAposVenda(
   estoqueId: string,
-  quantidade: number
+  quantidade: number,
+  tx?: Prisma.TransactionClient
 ): Promise<void> {
   // Validate input parameter
   if (quantidade <= 0) {
     throw new Error('Quantidade deve ser maior que zero')
   }
 
-  const estoque = await prisma.estoques.findUnique({
+  const client = tx || prisma
+
+  const estoque = await client.estoques.findUnique({
     where: { id: estoqueId },
   })
 
@@ -272,7 +275,7 @@ export async function atualizarAposVenda(
     throw new Error('Quantidade insuficiente em estoque')
   }
 
-  await prisma.estoques.update({
+  await client.estoques.update({
     where: { id: estoqueId },
     data: {
       quantidadeTotal: {
@@ -290,14 +293,17 @@ export async function atualizarAposVenda(
  */
 export async function restaurarAposCancelamento(
   estoqueId: string,
-  quantidade: number
+  quantidade: number,
+  tx?: Prisma.TransactionClient
 ): Promise<void> {
   // Validate input parameter
   if (quantidade <= 0) {
     throw new Error('Quantidade deve ser maior que zero')
   }
 
-  const estoque = await prisma.estoques.findUnique({
+  const client = tx || prisma
+
+  const estoque = await client.estoques.findUnique({
     where: { id: estoqueId },
   })
 
@@ -305,7 +311,7 @@ export async function restaurarAposCancelamento(
     throw new Error('Estoque não encontrado')
   }
 
-  await prisma.estoques.update({
+  await client.estoques.update({
     where: { id: estoqueId },
     data: {
       quantidadeTotal: {
